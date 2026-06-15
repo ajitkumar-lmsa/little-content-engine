@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Little Content Engine .. that can — LearningMate &amp; Chegg</title>
+<style>
+:root {
+  --chegg-orange:#FF6B00; --chegg-orange-soft:#FFF0E6; --chegg-orange-line:#FFCBA3;
+  --lm-green:#1F8A5B; --lm-green-soft:#E5F3EC; --lm-green-line:#BCE0CC;
+  --ink:#0E1A2B; --ink-2:#16263b;
+  --paper:#FFFFFF; --mist:#F5F7FA; --hair:#E2E8F0; --slate:#5E7082; --slate-2:#8595A4;
+  --l1:#2B6CB0; --l1-soft:#E7EFF8; --l1-line:#C3D8EE;
+  --l2:#805AD5; --l2-soft:#F0EBF9; --l2-line:#D6BCFA;
+  --l3:#1F8A5B; --l3-soft:#E5F3EC; --l3-line:#BCE0CC;
+  --l4:#C2691F; --l4-soft:#F7EBDF; --l4-line:#E8CDB2;
+  --p2:#B23A48; --p2-soft:#F6E3E5; --p2-line:#E7C2C7;
+  --display:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;scroll-behavior:smooth;}
+body{background:var(--mist);color:var(--ink);font-family:var(--display);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+.mono{font-family:var(--mono);}
+
+/* ── APPBAR ── */
+.appbar{position:sticky;top:0;z-index:50;background:var(--ink);color:#EAF0F6;display:flex;align-items:center;height:56px;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.appbar-brand{display:flex;align-items:center;gap:12px;padding:0 20px;border-right:1px solid rgba(255,255,255,.1);height:100%;min-width:210px;}
+.chegg-logo{display:flex;align-items:center;gap:2px;font-weight:900;font-size:18px;letter-spacing:-.02em;}
+.chegg-logo .c{color:var(--chegg-orange);}
+.chegg-logo .rest{color:#fff;}
+.brand-sep{width:1px;height:22px;background:rgba(255,255,255,.2);margin:0 10px;}
+.lm-tag{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#7FA0BE;font-weight:700;line-height:1.4;}
+.nav{display:flex;gap:2px;padding:0 10px;height:100%;align-items:center;}
+.nav-btn{background:transparent;border:0;color:#A9BED2;padding:0 12px;height:40px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .15s;}
+.nav-btn:hover{color:#EAF0F6;background:rgba(255,255,255,.07);}
+.nav-btn.active{color:#fff;background:rgba(255,255,255,.13);}
+.nb{min-width:18px;height:18px;border-radius:9px;background:var(--chegg-orange);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+.appbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;padding:0 16px;}
+.pchip{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;padding:5px 11px;border-radius:20px;border:1px solid rgba(255,255,255,.15);color:#B9C7D6;}
+.pchip .led{width:7px;height:7px;border-radius:50%;background:var(--lm-green);animation:pulse 2s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* reset bar — hidden, triggered via Chegg logo secret click */
+.reset-secret{display:none;}
+/* chegg logo is the secret reset button */
+.chegg-logo{display:flex;align-items:center;gap:2px;font-weight:900;font-size:18px;letter-spacing:-.02em;cursor:pointer;user-select:none;}
+.chegg-logo:active{opacity:.7;}
+
+/* ── LAYOUT ── */
+.page-wrap{max-width:1320px;margin:0 auto;padding:26px 22px 80px;}
+.page-header{margin-bottom:26px;}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:var(--slate);margin:0 0 7px;}
+.page-title{font-size:25px;font-weight:900;letter-spacing:-.025em;margin:0 0 8px;}
+.page-sub{color:var(--slate);max-width:72ch;font-size:14px;margin:0;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;}
+.badge.ai{background:var(--lm-green-soft);color:#0f5c3a;border:1px solid var(--lm-green-line);}
+.badge.human{background:var(--l4-soft);color:#8a4811;border:1px solid var(--l4-line);}
+.badge.l1{background:var(--l1-soft);color:#1d4f86;border:1px solid var(--l1-line);}
+.badge.l2{background:var(--l2-soft);color:#553098;border:1px solid var(--l2-line);}
+.badge.l3{background:var(--lm-green-soft);color:#0f5c3a;border:1px solid var(--lm-green-line);}
+.badge.l4{background:var(--l4-soft);color:#8a4811;border:1px solid var(--l4-line);}
+.badge.p2{background:var(--p2-soft);color:#831e2a;border:1px solid var(--p2-line);}
+.badge.orange{background:var(--chegg-orange-soft);color:#b34a00;border:1px solid var(--chegg-orange-line);}
+.badge.pending{background:#FFF9E6;color:#8a6800;border:1px solid #F0D77A;}
+.badge.done{background:var(--lm-green-soft);color:#0f5c3a;border:1px solid var(--lm-green-line);}
+.sev{font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px;}
+.sev.high{background:var(--p2-soft);color:var(--p2);}
+.sev.med{background:var(--l4-soft);color:#8a4811;}
+.sev.low{background:var(--mist);color:var(--slate);border:1px solid var(--hair);}
+
+/* ── CARDS / PANELS ── */
+.card{background:var(--paper);border:1px solid var(--hair);border-radius:14px;}
+.panel{background:var(--paper);border:1px solid var(--hair);border-radius:14px;padding:22px;margin-bottom:20px;}
+.panel-head{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.panel-head h2{font-size:16px;font-weight:800;margin:0;}
+.panel-head .hint{font-size:12px;color:var(--slate-2);margin-left:auto;}
+.section-lead{font-size:13px;color:var(--slate);margin:0 0 16px;}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.metric{background:var(--paper);border:1px solid var(--hair);border-radius:13px;padding:16px 20px;position:relative;overflow:hidden;}
+.metric::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--hair));}
+.metric .k{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate);font-weight:700;}
+.metric .v{font-size:28px;font-weight:900;letter-spacing:-.03em;margin:5px 0 2px;}
+.metric .v small{font-size:14px;font-weight:600;color:var(--slate);}
+.metric .trend{font-size:11.5px;color:var(--slate-2);}
+
+/* ── BUTTONS ── */
+.btn{border:1px solid var(--hair);background:var(--paper);border-radius:9px;padding:9px 15px;font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:7px;transition:all .15s;cursor:pointer;}
+.btn:hover{border-color:var(--l1-line);background:var(--l1-soft);}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+.btn.primary:hover{background:var(--ink-2);}
+.btn.orange{background:var(--chegg-orange);color:#fff;border-color:var(--chegg-orange);}
+.btn.orange:hover{filter:brightness(1.06);}
+.btn.green{background:var(--lm-green);color:#fff;border-color:var(--lm-green);}
+.btn.green:hover{filter:brightness(1.06);}
+.btn.ghost{background:transparent;border-color:transparent;}
+.btn.ghost:hover{background:var(--mist);border-color:var(--hair);}
+.btn.sm{padding:6px 11px;font-size:12px;border-radius:7px;}
+.btn.danger{background:var(--p2-soft);color:var(--p2);border-color:var(--p2-line);}
+.btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
+
+/* ── PIPELINE RAIL ── */
+.pipeline-rail{display:flex;align-items:stretch;background:var(--paper);border:1px solid var(--hair);border-radius:14px;overflow:hidden;margin-bottom:24px;}
+.pipe-step{flex:1;padding:16px 14px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--hair);position:relative;}
+.pipe-step:last-child{border-right:0;}
+.pipe-step::after{content:'▶';position:absolute;top:50%;right:-9px;transform:translateY(-50%);color:var(--hair);font-size:11px;z-index:2;}
+.pipe-step:last-child::after{display:none;}
+.pipe-step .ps-num{font-family:var(--mono);font-size:10px;color:var(--slate-2);font-weight:700;}
+.pipe-step .ps-name{font-weight:800;font-size:13px;line-height:1.2;}
+.pipe-step .ps-sub{font-size:11.5px;color:var(--slate);line-height:1.3;}
+.pipe-step .ps-count{margin-top:auto;padding-top:10px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--chegg-orange);}
+
+/* ── RESEARCH / SIGNAL ROWS ── */
+.signal-row{display:flex;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid var(--hair);}
+.signal-row:last-child{border-bottom:0;}
+.score-ring{width:44px;height:44px;border-radius:50%;background:conic-gradient(var(--lm-green) calc(var(--pct)*3.6deg),var(--hair) 0);display:grid;place-items:center;flex:0 0 44px;position:relative;}
+.score-ring::before{content:'';position:absolute;inset:5px;border-radius:50%;background:var(--paper);}
+.score-ring .sv{position:relative;z-index:1;font-family:var(--mono);font-size:11px;font-weight:800;line-height:1;}
+.sig-body{flex:1;min-width:0;}
+.sig-title{font-weight:700;font-size:13.5px;margin:0 0 5px;}
+.sig-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--slate);}
+.sig-why{font-size:12px;color:var(--slate);margin-top:5px;font-style:italic;}
+.sig-right{display:flex;flex-direction:column;gap:7px;align-items:flex-end;flex:0 0 auto;}
+
+/* ── CLASSIFY LAYER CARDS ── */
+.layer-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:20px;}
+.layer-card{border-radius:12px;padding:14px;border:2px solid var(--bdr,var(--hair));background:var(--bg,var(--mist));cursor:pointer;transition:all .15s;position:relative;}
+.layer-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px -12px rgba(0,0,0,.3);}
+.layer-card.selected{border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,107,0,.2);transform:translateY(-2px);}
+.layer-card .lc-tick{display:none;position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:var(--chegg-orange);color:#fff;font-size:11px;align-items:center;justify-content:center;font-weight:800;}
+.layer-card.selected .lc-tick{display:flex;}
+.layer-card .lc-num{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--acc);}
+.layer-card .lc-name{font-weight:800;font-size:13.5px;margin:5px 0 3px;}
+.layer-card .lc-cad{font-size:11.5px;color:var(--slate);}
+.layer-card.l1{--bdr:var(--l1-line);--bg:var(--l1-soft);--acc:var(--l1);}
+.layer-card.l2{--bdr:var(--l2-line);--bg:var(--l2-soft);--acc:var(--l2);}
+.layer-card.l3{--bdr:var(--lm-green-line);--bg:var(--lm-green-soft);--acc:var(--lm-green);}
+.layer-card.l4{--bdr:var(--l4-line);--bg:var(--l4-soft);--acc:var(--l4);}
+.layer-card.p2{--bdr:var(--p2-line);--bg:var(--p2-soft);--acc:var(--p2);}
+/* filter pills in classify */
+.layer-filter-pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
+.lfp{border:1px solid var(--hair);background:var(--paper);padding:5px 13px;border-radius:20px;font-size:12.5px;font-weight:600;color:var(--slate);cursor:pointer;transition:all .15s;}
+.lfp:hover,.lfp.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.lfp.on.l1{background:var(--l1);border-color:var(--l1);}
+.lfp.on.l2{background:var(--l2);border-color:var(--l2);}
+.lfp.on.l3{background:var(--lm-green);border-color:var(--lm-green);}
+.lfp.on.l4{background:var(--l4);border-color:var(--l4);}
+.lfp.on.p2{background:var(--p2);border-color:var(--p2);}
+
+/* ── RUBRIC ── */
+.rubric{display:grid;gap:12px;margin-bottom:18px;}
+.rub{display:grid;grid-template-columns:155px 1fr 46px;gap:10px;align-items:center;font-size:13px;}
+.rub label{font-weight:600;color:var(--slate);}
+.rub input[type=range]{width:100%;accent-color:var(--chegg-orange);}
+.rub .rv{font-family:var(--mono);font-weight:800;text-align:right;}
+.reco-box{background:var(--lm-green-soft);border:1px solid var(--lm-green-line);border-radius:10px;padding:13px 16px;font-size:13.5px;color:#0f5c3a;font-weight:700;margin-bottom:18px;display:flex;align-items:flex-start;gap:10px;}
+
+/* ── ITEM TRACKER BANNER ── */
+.tracker-banner{background:linear-gradient(135deg,#0f2a1a,#1a3a2a);border:1px solid var(--lm-green-line);border-radius:12px;padding:16px 20px;margin-bottom:22px;color:#E5F3EC;}
+.tracker-banner .tb-title{font-weight:800;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.tracker-steps{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;}
+.ts{display:flex;align-items:center;gap:0;}
+.ts-dot{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);flex:0 0 28px;transition:all .3s;}
+.ts-dot.done{background:var(--lm-green);border-color:var(--lm-green);color:#fff;}
+.ts-dot.active{background:var(--chegg-orange);border-color:var(--chegg-orange);color:#fff;box-shadow:0 0 0 4px rgba(255,107,0,.25);}
+.ts-label{font-size:10px;color:rgba(255,255,255,.5);margin:0 6px;white-space:nowrap;max-width:80px;text-align:center;line-height:1.3;}
+.ts-label.done{color:#7FD0A6;}
+.ts-label.active{color:#fff;font-weight:700;}
+.ts-bar{width:30px;height:2px;background:rgba(255,255,255,.15);flex:0 0 30px;}
+.ts-bar.done{background:var(--lm-green);}
+
+/* ── BLUEPRINT OUTPUT ── */
+.blueprint-output{background:var(--ink);color:#DCE6F0;border-radius:12px;padding:22px;margin-top:18px;font-family:var(--mono);font-size:12.5px;line-height:1.8;max-height:420px;overflow-y:auto;white-space:pre-wrap;}
+.blueprint-output .bp-head{color:var(--chegg-orange);font-weight:700;font-size:13.5px;}
+.blueprint-output .bp-section{color:#7FD0A6;}
+.gap-table{width:100%;border-collapse:collapse;font-size:13px;}
+.gap-table th{background:var(--mist);padding:9px 12px;text-align:left;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-bottom:2px solid var(--hair);}
+.gap-table td{padding:10px 12px;border-bottom:1px solid var(--hair);vertical-align:top;}
+.gap-table tr:hover td{background:var(--mist);}
+.gap-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;}
+.gap-badge.missing{background:var(--p2-soft);color:var(--p2);border:1px solid var(--p2-line);}
+.gap-badge.outdated{background:var(--l4-soft);color:#8a4811;border:1px solid var(--l4-line);}
+.gap-badge.current{background:var(--lm-green-soft);color:#0f5c3a;border:1px solid var(--lm-green-line);}
+
+/* ── KANBAN ── */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start;}
+.kol{background:var(--mist);border-radius:12px;padding:11px;}
+.kol-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:0 3px;}
+.kh-name{font-weight:800;font-size:12.5px;}
+.kh-count{width:20px;height:20px;border-radius:10px;background:var(--ink);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:auto;}
+.k-card{background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all .15s;position:relative;}
+.k-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px -10px rgba(0,0,0,.2);}
+/* NEW ITEM FLASH */
+.k-card.new-item{border-color:var(--chegg-orange);animation:flash-border 1.2s ease infinite;}
+@keyframes flash-border{0%,100%{border-color:var(--chegg-orange);box-shadow:0 0 0 2px rgba(255,107,0,.35);}50%{border-color:transparent;box-shadow:none;}}
+.k-card .new-pip{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--chegg-orange);}
+.kc-title{font-weight:700;font-size:13px;margin:0 0 7px;line-height:1.3;}
+.kc-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:7px;}
+.kc-assign{font-size:11.5px;color:var(--slate);display:flex;align-items:center;gap:5px;margin-top:7px;}
+.kc-assign .av{width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 22px;}
+.kc-due{font-size:11px;font-family:var(--mono);color:var(--slate-2);margin-top:4px;}
+.kc-due.overdue{color:var(--p2);}
+
+/* ── SCHEDULE ── */
+.sch-row{display:grid;grid-template-columns:130px 1fr auto;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--hair);}
+.sch-row:last-child{border-bottom:0;}
+.sch-date{font-weight:800;font-size:13px;}
+.sch-date small{display:block;font-weight:600;font-size:11px;color:var(--slate-2);margin-top:2px;}
+.sch-topic{font-size:14px;font-weight:700;}
+.sch-topic.empty{color:var(--slate-2);font-style:italic;font-weight:500;}
+.sch-chips{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:5px;}
+.stepper{display:flex;align-items:center;}
+.step{display:flex;align-items:center;}
+.step-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--hair);background:var(--paper);display:grid;place-items:center;font-size:8px;}
+.step.done .step-dot{background:var(--lm-green);border-color:var(--lm-green);color:#fff;}
+.step.cur .step-dot{border-color:var(--chegg-orange);background:var(--chegg-orange-soft);}
+.step-bar{width:20px;height:2px;background:var(--hair);}
+.step.done .step-bar{background:var(--lm-green);}
+.sch-act button{border:1px solid var(--hair);background:var(--paper);border-radius:8px;padding:7px 12px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;}
+.sch-act button:hover{border-color:var(--l1-line);background:var(--l1-soft);}
+.sch-act button.pub{background:var(--lm-green-soft);border-color:var(--lm-green-line);color:#0f5c3a;}
+
+/* ── AGENT OUTPUT ── */
+.agent-out{background:var(--ink);color:#a8d8a0;border-radius:10px;padding:16px;font-family:var(--mono);font-size:12px;line-height:1.8;min-height:80px;max-height:260px;overflow-y:auto;white-space:pre-wrap;margin-top:12px;}
+.blink{animation:blink .7s ease infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── PROGRESS BAR ── */
+.prog-bar{height:6px;background:var(--hair);border-radius:3px;overflow:hidden;}
+.prog-bar .fill{height:100%;border-radius:3px;transition:width .4s ease;}
+.vchip{display:inline-block;font-family:var(--mono);font-size:11px;background:var(--mist);border:1px solid var(--hair);border-radius:5px;padding:1px 7px;color:var(--slate);font-weight:600;}
+
+/* ── TOAST ── */
+#toasts{position:fixed;bottom:22px;right:22px;z-index:99;display:flex;flex-direction:column;gap:9px;}
+.toast{background:var(--ink);color:#EAF0F6;padding:12px 16px;border-radius:10px;font-size:13px;box-shadow:0 14px 30px -14px rgba(0,0,0,.6);display:flex;align-items:center;gap:10px;animation:toastin .25s ease;max-width:360px;}
+.toast .tle{width:8px;height:8px;border-radius:50%;background:var(--chegg-orange);flex:0 0 auto;}
+.toast.green .tle{background:var(--lm-green);}
+.toast .tsub{font-size:11px;color:#9FC4E8;margin-top:2px;}
+@keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(14,26,43,.55);backdrop-filter:blur(3px);z-index:70;display:none;align-items:center;justify-content:center;padding:24px;}
+.overlay.show{display:flex;}
+.modal{background:var(--paper);border-radius:16px;width:min(760px,100%);max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px -30px rgba(0,0,0,.6);}
+.modal-bar{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--ink);color:#EAF0F6;}
+.modal-bar .traffic{display:flex;gap:5px;}
+.modal-bar .traffic i{width:11px;height:11px;border-radius:50%;display:block;}
+.modal-bar .traffic i:nth-child(1){background:#FF5F57;}
+.modal-bar .traffic i:nth-child(2){background:#FEBC2E;}
+.modal-bar .traffic i:nth-child(3){background:#28C840;}
+.modal-bar .mt{font-weight:800;font-size:14px;}
+.modal-bar .close{margin-left:auto;background:rgba(255,255,255,.1);border:0;color:#EAF0F6;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:15px;}
+.modal-body{padding:22px;overflow-y:auto;}
+
+/* ── REVIEW & DECIDE ── */
+.rd-header{background:linear-gradient(135deg,var(--ink),#1e3556);border-radius:14px;padding:24px 28px;margin-bottom:20px;color:#EAF0F6;position:relative;overflow:hidden;}
+.rd-header::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,107,0,.08);}
+.rd-layer-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;margin-bottom:14px;}
+.rd-topic{font-size:20px;font-weight:900;letter-spacing:-.02em;margin:0 0 8px;line-height:1.25;}
+.rd-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:rgba(255,255,255,.65);}
+.rd-score-bar{display:flex;align-items:center;gap:12px;margin-top:16px;}
+.rd-score-pill{background:var(--chegg-orange);color:#fff;font-family:var(--mono);font-weight:800;font-size:14px;padding:5px 14px;border-radius:20px;}
+.rd-score-label{font-size:12px;color:rgba(255,255,255,.6);}
+
+.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.rd-card{background:var(--paper);border:1px solid var(--hair);border-radius:13px;padding:18px 20px;}
+.rd-card-head{display:flex;align-items:center;gap:9px;margin-bottom:13px;}
+.rd-card-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 30px;}
+.rd-card-title{font-weight:800;font-size:13.5px;}
+.rd-card ul{margin:0;padding:0 0 0 16px;list-style:disc;}
+.rd-card li{font-size:13px;color:var(--slate);margin:5px 0;line-height:1.5;}
+.rd-card li strong{color:var(--ink);}
+.rd-card p{font-size:13px;color:var(--slate);margin:0;line-height:1.55;}
+
+.rd-delta{background:var(--paper);border:1px solid var(--hair);border-radius:13px;padding:18px 20px;margin-bottom:20px;}
+.rd-delta-head{display:flex;align-items:center;gap:9px;margin-bottom:14px;}
+.rd-delta-row{display:grid;grid-template-columns:160px 1fr 1fr 100px;gap:0;border-radius:9px;overflow:hidden;border:1px solid var(--hair);margin-bottom:8px;}
+.rd-delta-cell{padding:10px 13px;font-size:12.5px;border-right:1px solid var(--hair);}
+.rd-delta-cell:last-child{border-right:0;}
+.rd-delta-cell.head{background:var(--mist);font-weight:700;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--slate);}
+.rd-delta-cell.area{font-weight:700;color:var(--ink);}
+.rd-delta-cell.miss{color:var(--p2);}
+.rd-delta-cell.old{color:#8a4811;}
+.rd-delta-cell.ok{color:#0f5c3a;}
+
+.rd-actions{display:flex;gap:12px;flex-wrap:wrap;padding:18px 20px;background:var(--paper);border:1px solid var(--hair);border-radius:13px;}
+.rd-actions .divider{width:1px;background:var(--hair);align-self:stretch;}
+
+/* ── REVIEW QUEUE LIST ── */
+.rv-row{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--hair);cursor:pointer;transition:background .1s;border-radius:8px;}
+.rv-row:last-child{border-bottom:0;}
+.rv-row:hover{background:var(--mist);margin:0 -10px;padding:14px 10px;}
+.rv-row.active-row{background:var(--chegg-orange-soft);margin:0 -10px;padding:14px 10px;border-radius:8px;}
+@media(max-width:1100px){.metrics{grid-template-columns:repeat(2,1fr);}.layer-cards{grid-template-columns:repeat(3,1fr);}.kanban{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:768px){.pipeline-rail{flex-direction:column;}.pipe-step::after{display:none;}.layer-cards{grid-template-columns:1fr 1fr;}.kanban{grid-template-columns:1fr;}.rub{grid-template-columns:120px 1fr 40px;}}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="appbar-brand">
+    <div class="chegg-logo" onclick="hardReset()" title="The Little Content Engine — LearningMate & Chegg" alt="Reset demo">
+      <span class="c">C</span><span class="rest">hegg</span>
+    </div>
+    <div class="brand-sep"></div>
+    <div class="lm-tag">LearningMate<br>AI Content Engine</div>
+  </div>
+  <nav class="nav" id="mainNav">
+    <button class="nav-btn active" data-view="dashboard">📊 Dashboard</button>
+    <button class="nav-btn" data-view="research">🔍 Research Queue <span class="nb" id="nb-research">3</span></button>
+    <button class="nav-btn" data-view="classify">📋 Review &amp; Decide</button>
+    <button class="nav-btn" data-view="blueprint">📐 Blueprint</button>
+    <button class="nav-btn" data-view="production">🏭 Production Board</button>
+    <button class="nav-btn" data-view="schedule">📅 Schedule</button>
+  </nav>
+  <div class="appbar-right">
+    <span class="pchip"><span class="led"></span>Agent running</span>
+  </div>
+</header>
+
+<div class="page-wrap" id="view"></div>
+<div id="toasts"></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <div class="modal-bar">
+      <span class="traffic"><i></i><i></i><i></i></span>
+      <span class="mt" id="modal-title">Detail</span>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   SEED DATA — pure function so we can reset
+═══════════════════════════════════════════════════ */
+const NOW = new Date('2026-06-11T09:00:00Z');
+const fmt = d => new Date(d+'T00:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+const daysUntil = d => Math.round((new Date(d+'T00:00:00Z')-NOW)/86400000);
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+const LAYERS = {
+  L1:{name:'Foundational Core',cadence:'Quarterly',trigger:'Quarterly review + major conceptual shifts'},
+  L2:{name:'Platform Courses',cadence:'On major release',trigger:'Auto-alert on major platform releases'},
+  L3:{name:'Bi-weekly Update Drops',cadence:'Every 2 weeks',trigger:'Bi-weekly sprint — any AI development'},
+  L4:{name:'Catch-up Modules',cadence:'Every 6–8 weeks',trigger:'Automated: 4+ L3 drops accumulated'},
+  P2:{name:'Program 2 Tracks',cadence:'~3 month build',trigger:'Stackable certification tracks'},
+};
+
+/* ─ Rich topic detail data for Review & Decide ─ */
+const TOPIC_DETAILS = {
+  'r1':{
+    whatsNew:'Anthropic has shipped Claude Projects as a GA feature alongside Notebooks (currently in beta). Projects give users persistent system-prompt memory and a shared knowledge base across sessions. Notebooks allow teams to share curated AI context documents inside a Project.',
+    whatChanged:'Previously, every new Claude conversation started with a blank slate. Projects now retain instructions and knowledge permanently. Users can store company style guides, SOPs, and domain context that Claude references automatically in every conversation within that Project.',
+    learnerImpact:'Working professionals using Claude will immediately notice this change — their current workflows of pasting context at the start of every chat are now obsolete. Anyone managing team Claude usage needs to understand how to set up, govern, and share Projects.',
+    courseImpact:[
+      {course:'Claude Platform Course v1.0', gap:'missing', note:'Projects & Notebooks not covered at all — major gap'},
+      {course:'L1 Foundational Core v2.0', gap:'outdated', note:'General tool selection section references Claude as stateless — needs update'},
+      {course:'May 2026 Catch-up Module', gap:'ok', note:'No overlap — this is net-new content'},
+    ],
+    deliverable:'15–20 min L3 Update Drop: interface walkthrough, 5-step Project setup, real team scenario (marketing), knowledge check (2 MCQs).',
+  },
+  'r2':{
+    whatsNew:'GitHub Copilot Workspace has exited preview and is now available to all Copilot subscribers. It takes a natural-language task description ("I need a script that…") and generates an implementation plan, file structure, and working code — without the user writing a single line of code.',
+    whatChanged:'Vibe coding has moved from experimental to mainstream. GitHub — the world\'s largest code host — now ships a tool explicitly designed for non-engineers to build software by describing intent in plain English. This validates the "vibe coding" concept for professional audiences.',
+    learnerImpact:'Non-technical professionals in marketing, ops, finance, and HR can now build functional automation tools without a developer. This is immediately applicable: automating reports, building simple data pipelines, creating internal tools.',
+    courseImpact:[
+      {course:'L3 Bi-weekly drops archive', gap:'missing', note:'No existing vibe coding content — full net-new'},
+      {course:'P2 Level 5: Vibe Coding for AI Builders', gap:'outdated', note:'This drop should inform the forthcoming P2 course'},
+      {course:'L1 Foundational Core — tool landscape', gap:'ok', note:'No conflict; foundational course is tool-agnostic'},
+    ],
+    deliverable:'15–20 min L3 Update Drop: what vibe coding is, Copilot Workspace walkthrough, demo building a "weekly sales summary emailer", knowledge check.',
+  },
+  'r3':{
+    whatsNew:'Gemini 2.5 Flash now supports a 1 million token context window — enough for a full novel, a year of emails, or an entire codebase. This is available in Gemini Advanced (consumer) and via API.',
+    whatChanged:'The previous Gemini context limit was 32k tokens for most users. The jump to 1M tokens is a qualitative shift: users can now load entire documents, contract libraries, or meeting transcript archives into a single prompt and ask questions across all of it.',
+    learnerImpact:'Professionals who work with long documents — lawyers reviewing contracts, analysts reading earnings calls, HR teams processing applications — can now query across their full corpus in one session. This changes how they should structure their AI workflows.',
+    courseImpact:[
+      {course:'Google Gemini Platform Course v1.0', gap:'outdated', note:'Context window section references 32k — needs update'},
+      {course:'L1 Prompt Engineering module', gap:'ok', note:'Conceptual content is context-window agnostic'},
+      {course:'L3 drops — prompting for long docs', gap:'missing', note:'New pattern: structuring prompts for 1M context'},
+    ],
+    deliverable:'15 min L3 Update Drop: why 1M context matters, demo querying a 100-page report, prompt patterns for long-context, knowledge check.',
+  },
+  'r4':{
+    whatsNew:'OpenAI has made o3 — their most capable reasoning model — available to ChatGPT Plus and Pro subscribers. Reasoning mode can now be enabled per-message, giving users explicit control over when the model "thinks" before responding.',
+    whatChanged:'Previously, model selection was fixed per conversation or via API. Now professionals can toggle reasoning on for complex analytical tasks within the same ChatGPT session. The tradeoff: reasoning mode is slower (10–60s) but significantly more accurate on multi-step problems.',
+    learnerImpact:'Knowing when to use reasoning mode vs standard mode is now a core professional AI literacy skill. Misusing it (applying it to simple tasks) wastes time; not using it (on complex analysis) produces weaker results.',
+    courseImpact:[
+      {course:'ChatGPT / OpenAI Platform Course v1.1', gap:'outdated', note:'Model selection section predates o3 reasoning toggle'},
+      {course:'L1 Foundational — model evaluation', gap:'outdated', note:'Tool evaluation framework should reference reasoning modes'},
+      {course:'L3 archive', gap:'missing', note:'No reasoning-model decision guide exists yet'},
+    ],
+    deliverable:'15–20 min L3 Update Drop: reasoning mode explained, when to use it (decision guide), side-by-side demo (financial analysis), knowledge check.',
+  },
+  'r8':{
+    whatsNew:'Scheduled Q3 quarterly review. The Q2 2026 period saw significant shifts: agentic AI moved from experimental to mainstream, reasoning models became consumer-accessible, and vibe coding emerged as a legitimate professional workflow.',
+    whatChanged:'The L1 Foundational Core v2.0 was authored in Q4 2025. Since then: (1) agentic AI definitions have evolved materially, (2) reasoning models now require their own section, (3) the "how to evaluate AI tools" framework is partially outdated, (4) responsible AI section needs EU AI Act and FTC Order updates.',
+    learnerImpact:'New learners starting the foundation course will encounter outdated framing of agentic AI and missing coverage of reasoning models. The responsible AI section may create compliance blind spots for enterprise learners.',
+    courseImpact:[
+      {course:'L1 Module 1 — Core concepts', gap:'outdated', note:'Agentic AI section definition is Q4 2025 vintage'},
+      {course:'L1 Module 2 — Prompt engineering', gap:'outdated', note:'Missing: reasoning model prompting, chain-of-thought patterns'},
+      {course:'L1 Module 3 — Tool evaluation', gap:'outdated', note:'Landscape section references pre-2026 tool set'},
+      {course:'L1 Module 4 — Responsible AI', gap:'missing', note:'EU AI Act (Aug 2026 deadline) + FTC Order not covered'},
+    ],
+    deliverable:'Full L1 quarterly refresh: 5 revised modules, 7 updated video scripts, new assessment bank items, revised manifests. ~3 month production cycle.',
+  },
+  'r10':{
+    whatsNew:'Google has released a deep integration between Gemini Advanced and Google Workspace — Docs, Sheets, Slides, Drive, and Gmail can now be queried and edited directly by Gemini agents without leaving the Workspace UI.',
+    whatChanged:'Previously, Gemini in Workspace was limited to single-app helpers (summarise this email, suggest a reply). The new integration allows cross-app agentic actions: "summarise all project docs from Drive, create a Sheets tracker, and draft a status email" — all in one instruction.',
+    learnerImpact:'Enterprise users in Google Workspace environments — the majority of mid-market and large companies — can now unlock significant automation without leaving their existing tools. This is a major workflow change for the Gemini course audience.',
+    courseImpact:[
+      {course:'Google Gemini Platform Course v1.0', gap:'outdated', note:'Workspace integration section covers only single-app features'},
+      {course:'L3 archive', gap:'missing', note:'No cross-app agentic workflow content exists'},
+      {course:'L1 — agentic workflows module', gap:'ok', note:'Conceptual framework is compatible; no change needed'},
+    ],
+    deliverable:'Platform course update (L2): revise Workspace integration section + add new cross-app agentic workflow module. ~4 hours revised content.',
+  },
+};
+
+function getTopicDetail(id) {
+  return TOPIC_DETAILS[id] || {
+    whatsNew: 'The Research Agent has surfaced this topic based on relevance scoring across monitored sources. Full detail requires LD Lead review of the linked source.',
+    whatChanged: 'Change details are extracted from source release notes and industry coverage. The key change has practical applicability to working professionals.',
+    learnerImpact: 'Learners in the affected platform courses or update drop subscribers will encounter this change in their day-to-day AI tool usage.',
+    courseImpact:[
+      {course:'Relevant platform course', gap:'outdated', note:'Review against current course content required'},
+      {course:'L3 archive', gap:'missing', note:'No existing coverage — net-new content'},
+    ],
+    deliverable: '15–20 min instructional module covering the change, a practical example, and a knowledge check.',
+  };
+}
+
+function makeSeed() {
+  return {
+    currentView: 'dashboard',
+    researchFilter: 'all',
+    classifyFilter: 'all',
+    // The single "active item" that flows through all stages
+    activeItem: null,   // {id, topic, layer, sev, score, why, source, detected}
+    activeStage: 0,     // 0=research 1=classify 2=blueprint 3=production 4=published
+    newProductionIds: new Set(), // ids highlighted with flash border
+
+    classify: {
+      selected: null,
+      rubric: {depthNeed:65,deltaSize:72,contentAge:55,assetReuse:40,cadence:80,scopeNew:70},
+    },
+    blueprintGenerated: false,
+    blueprintItem: null,
+
+    research: [
+      {id:'r1',topic:'Claude Projects & Notebooks — GA launch',source:'Anthropic blog',layer:'L3',score:91,sev:'high',why:'Major surface change to Claude.ai; broad professional impact; teachable in 15 min',platform:'Anthropic Claude',detected:'2026-06-10',status:'new'},
+      {id:'r2',topic:'Vibe coding goes mainstream — GitHub Copilot Workspace',source:'GitHub changelog + TechCrunch',layer:'L3',score:87,sev:'high',why:'High practical impact for non-engineers; core vibe-coding workflow demo',platform:'All',detected:'2026-06-09',status:'new'},
+      {id:'r3',topic:'Google Gemini 2.5 Flash — extended context window (1M tokens)',source:'Google DeepMind blog',layer:'L3',score:83,sev:'high',why:'Changes how professionals structure long-document prompts; immediate workflow change',platform:'Google Gemini',detected:'2026-06-08',status:'new'},
+      {id:'r4',topic:'OpenAI o3 reasoning model — professional use patterns',source:'OpenAI release notes',layer:'L3',score:79,sev:'high',why:'New reasoning mode changes how professionals should prompt for analysis tasks',platform:'ChatGPT / OpenAI',detected:'2026-06-08',status:'new'},
+      {id:'r5',topic:'Perplexity Deep Research — agentic research for professionals',source:'Perplexity blog + VentureBeat',layer:'L3',score:76,sev:'med',why:'New agentic research pattern; directly applicable to knowledge workers',platform:'All',detected:'2026-06-07',status:'new'},
+      {id:'r6',topic:'Microsoft Copilot Pages — collaborative AI documents',source:'Microsoft M365 blog',layer:'L3',score:72,sev:'med',why:'New collaborative surface for Copilot users; workflow change for M365 orgs',platform:'Microsoft Copilot',detected:'2026-06-06',status:'new'},
+      {id:'r7',topic:'Agentic AI multi-step task automation — pattern library',source:'Research landscape + LangChain blog',layer:'L3',score:80,sev:'high',why:'Conceptual pattern that applies across all tools; durable topic for L3',platform:'All',detected:'2026-06-05',status:'new'},
+      {id:'r8',topic:'L1 Foundational Core — Q3 quarterly review signal',source:'Scheduled quarterly trigger',layer:'L1',score:88,sev:'high',why:'Quarterly cadence triggered; agentic AI section needs update',platform:'All',detected:'2026-06-01',status:'new'},
+      {id:'r9',topic:'AI for FP&A: automated financial modeling — professional demand',source:'Bloomberg + Gartner research',layer:'P2',score:71,sev:'med',why:'High enterprise demand; fits P2 Finance domain track',platform:'All',detected:'2026-06-04',status:'new'},
+      {id:'r10',topic:'Gemini Advanced — real-time Google Workspace deep integration',source:'Google Workspace blog',layer:'L2',score:74,sev:'med',why:'Major platform update to Gemini product; L2 platform course update needed',platform:'Google Gemini',detected:'2026-06-03',status:'new'},
+    ],
+
+    schedule: [
+      {id:'s1',date:'2026-06-12',label:'Drop · Jun W2',type:'drop',topic:'Vibe coding with GitHub Copilot Workspace',layer:'L3',status:'drafting',assignee:'LD Lead'},
+      {id:'s2',date:'2026-06-26',label:'Drop · Jun W4',type:'drop',topic:null,layer:'L3',status:'planned',assignee:null},
+      {id:'s3',date:'2026-07-10',label:'Drop · Jul W2',type:'drop',topic:null,layer:'L3',status:'planned',assignee:null},
+      {id:'s4',date:'2026-07-24',label:'Drop · Jul W4',type:'drop',topic:null,layer:'L3',status:'planned',assignee:null},
+      {id:'s5',date:'2026-07-31',label:'Catch-up · 8-wk',type:'catch',topic:'Jun–Jul consolidation (L3 drops 1–4)',layer:'L4',status:'planned',assignee:null},
+      {id:'s6',date:'2026-09-01',label:'Core review · Q3',type:'core',topic:'Foundational Core quarterly review',layer:'L1',status:'planned',assignee:'Stuart V.'},
+    ],
+
+    kanban: {
+      research:  [
+        {id:'k1',title:'L1 Q2 quarterly review scoping',layer:'L1',sev:'high',due:'2026-07-01',assign:'Stuart V.',fromFlow:false},
+        {id:'k8',title:'AI for FP&A — P2 elective scoping',layer:'P2',sev:'med',due:'2026-07-15',assign:'Shyama C.',fromFlow:false},
+      ],
+      classify:  [
+        {id:'k2',title:'Claude Projects & Notebooks — L2 platform update',layer:'L2',sev:'high',due:'2026-06-20',assign:'LD Lead',fromFlow:false},
+      ],
+      blueprint: [
+        {id:'k3',title:'Agentic AI multi-step patterns — L3 brief',layer:'L3',sev:'med',due:'2026-06-26',assign:'LD Lead',fromFlow:false},
+        {id:'k10',title:'Gemini Advanced Workspace integration — L2 update',layer:'L2',sev:'med',due:'2026-06-28',assign:'Shyama C.',fromFlow:false},
+      ],
+      production:[
+        {id:'k4',title:'Vibe coding drop — media production',layer:'L3',sev:'high',due:'2026-06-12',assign:'Friedl K.',fromFlow:false},
+        {id:'k5',title:'Foundational Core v2.0 — final QA',layer:'L1',sev:'high',due:'2026-06-15',assign:'Geetika S.',fromFlow:false},
+      ],
+      published: [
+        {id:'k6',title:'ChatGPT Projects refresh drop',layer:'L3',sev:'med',due:'2026-05-29',assign:'Friedl K.',fromFlow:false},
+        {id:'k7',title:'Copilot agent mode (Excel) drop',layer:'L3',sev:'med',due:'2026-05-15',assign:'Friedl K.',fromFlow:false},
+      ],
+    },
+  };
+}
+
+let state = makeSeed();
+
+/* ═══════════════════════════════════════════════════
+   HARD RESET
+═══════════════════════════════════════════════════ */
+function hardReset() {
+  state = makeSeed();
+  updateResearchBadge();
+  toast('State reset — starting fresh from seed data');
+  setView('dashboard');
+}
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+function updateResearchBadge() {
+  const nb = document.getElementById('nb-research');
+  if(nb) nb.textContent = state.research.filter(r=>r.status==='new').length;
+}
+
+function toast(msg, green=false, sub='') {
+  const t = document.createElement('div');
+  t.className = 'toast' + (green?' green':'');
+  t.innerHTML = `<span class="tle"></span><div><div>${esc(msg)}</div>${sub?`<div class="tsub">${esc(sub)}</div>`:''}</div>`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(), 4500);
+}
+
+function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+function openModal(title, html) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('overlay').classList.add('show');
+}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeModal();});
+
+function layerBadge(l) {
+  const map={L1:'l1',L2:'l2',L3:'l3',L4:'l4',P2:'p2'};
+  const names={L1:'L1 Foundation',L2:'L2 Platform',L3:'L3 Drop',L4:'L4 Catch-up',P2:'Program 2'};
+  return `<span class="badge ${map[l]||''}">${esc(names[l]||l)}</span>`;
+}
+function statusBadge(s) {
+  const map={new:'<span class="badge orange">⊕ New signal</span>',decided:'<span class="badge l1">✓ Decided</span>',drafting:'<span class="badge l3">✎ Drafting</span>','in-review':'<span class="badge l2">⧖ In review</span>',producing:'<span class="badge l4">⚙ Producing</span>',published:'<span class="badge done">✓ Published</span>',planned:'<span class="badge pending">◷ Planned</span>','new-trigger':'<span class="badge p2">⚡ Triggered</span>'};
+  return map[s]||`<span class="badge">${esc(s)}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   ITEM TRACKER (flows through all views)
+═══════════════════════════════════════════════════ */
+const TRACKER_STAGES = ['Research Queue','Review & Decide','Blueprint','Production','Published'];
+
+function trackerBanner() {
+  if(!state.activeItem) return '';
+  const item = state.activeItem;
+  const stage = state.activeStage;
+  return `
+<div class="tracker-banner">
+  <div class="tb-title">
+    <span>📍</span>
+    <span>Tracking: <strong>${esc(item.topic.length>60?item.topic.slice(0,60)+'…':item.topic)}</strong></span>
+    ${layerBadge(item.layer)}
+  </div>
+  <div class="tracker-steps">
+    ${TRACKER_STAGES.map((s,i)=>{
+      const isDone = i < stage || (i === stage && i === TRACKER_STAGES.length - 1);
+      const isActive = i === stage && i < TRACKER_STAGES.length - 1;
+      return `
+    <div class="ts">
+      <div>
+        <div style="display:flex;align-items:center;flex-direction:column;gap:4px;">
+          <div class="ts-dot ${isDone?'done':isActive?'active':''}">${isDone?'✓':i+1}</div>
+          <div class="ts-label ${isDone?'done':isActive?'active':''}">${s}</div>
+        </div>
+      </div>
+      ${i<TRACKER_STAGES.length-1?`<div class="ts-bar ${i<stage?'done':''}"></div>`:''}
+    </div>`;}).join('')}
+  </div>
+</div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   ROUTER
+═══════════════════════════════════════════════════ */
+const views = {dashboard,research:renderResearch,classify:renderClassify,blueprint:renderBlueprint,production:renderProduction,schedule:renderSchedule};
+function setView(v) {
+  state.currentView = v;
+  document.querySelectorAll('#mainNav .nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  document.getElementById('view').innerHTML='';
+  views[v]();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('mainNav').addEventListener('click',e=>{
+  const b=e.target.closest('[data-view]');
+  if(b) setView(b.dataset.view);
+});
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════════════ */
+function dashboard() {
+  const v = document.getElementById('view');
+  const newSigs = state.research.filter(r=>r.status==='new').length;
+  const inProd = state.kanban.production.length;
+  const nextDrop = state.schedule.find(s=>s.type==='drop'&&(s.status==='drafting'||s.status==='planned'));
+  const daysToNext = nextDrop ? Math.max(0,daysUntil(nextDrop.date)) : '—';
+
+  v.innerHTML = `
+${trackerBanner()}
+<div class="page-header">
+  <p class="eyebrow">Program 1 & Program 2</p>
+  <h1 class="page-title">The Little Content Engine</h1>
+  <p class="page-sub">Daily AI Search → Classify Program/Layer → Rubric Recommendation → SME/LD Review → Delta Check → AI Briefs → Human Production & Integration.</p>
+</div>
+
+<div class="pipeline-rail">
+  ${[
+    {n:'01 · AI','name':'Research Agent','sub':'Monitors full AI landscape daily. Surfaces scored candidates.','count':newSigs+' new signals','view':'research'},
+    {n:'02 · AI+Human','name':'Review & Decide','sub':'LD Lead reviews topic summary + delta gaps, decides proceed or reject.','count':state.research.filter(r=>r.status==='decided').length+' queued','view':'classify'},
+    {n:'03 · Course Lead','name':'Blueprint & Gap','sub':'Gap analysis then Claude generates all production docs at once.','count':state.kanban.blueprint.length+' in review','view':'blueprint'},
+    {n:'04 · Human Teams','name':'Production','sub':'Build media, QA, SCORM pack, LMS deploy. 14-day sprint.','count':inProd+' in production','view':'production'},
+    {n:'05 · Close','name':'Published & Sync','sub':'Catalogue rebuild, repo sync, catch-up compilation.','count':state.kanban.published.length+' published','view':'production'},
+  ].map(p=>`
+  <div class="pipe-step" onclick="setView('${p.view}')" style="cursor:pointer;">
+    <span class="ps-num">${p.n}</span>
+    <span class="ps-name">${p.name}</span>
+    <span class="ps-sub">${p.sub}</span>
+    <span class="ps-count">${p.count}</span>
+  </div>`).join('')}
+</div>
+
+<div class="metrics">
+  <div class="metric" style="--accent:var(--chegg-orange)"><span class="k">New signals</span><div class="v">${newSigs}</div><div class="trend">Awaiting review & decision</div></div>
+  <div class="metric" style="--accent:var(--lm-green)"><span class="k">Next drop in</span><div class="v">${daysToNext}<small> days</small></div><div class="trend">${nextDrop?esc(nextDrop.topic||nextDrop.label):'No active drop'}</div></div>
+  <div class="metric" style="--accent:var(--l2)"><span class="k">In production</span><div class="v">${inProd}</div><div class="trend">Across all layers</div></div>
+  <div class="metric" style="--accent:var(--l1)"><span class="k">Published drops</span><div class="v">${state.kanban.published.length}</div><div class="trend">This program cycle</div></div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>Layer Status</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:11px;">
+    ${[
+      {l:'L1',name:'Foundational Core',ver:'v2.0',next:'Q3 review · Sep 2026',prog:100,color:'var(--l1)'},
+      {l:'L2',name:'Platform Courses',ver:'4 courses',next:'Claude v2.0 triggered',prog:75,color:'var(--l2)'},
+      {l:'L3',name:'Update Drops',ver:'Jun W2',next:'Due Jun 12',prog:55,color:'var(--lm-green)'},
+      {l:'L4',name:'Catch-up Module',ver:'May 2026',next:'Next: Jul 31',prog:100,color:'var(--l4)'},
+      {l:'P2',name:'Program 2',ver:'v1.0 in dev',next:'~3 month timeline',prog:20,color:'var(--p2)'},
+    ].map(x=>`
+    <div class="card" style="padding:14px;cursor:pointer;" onclick="setView('research')">
+      <span class="badge ${x.l.toLowerCase()}" style="margin-bottom:8px;display:inline-flex;">● ${x.l}</span>
+      <div style="font-weight:800;font-size:13px;margin-bottom:3px;">${x.name}</div>
+      <span class="vchip">${x.ver}</span>
+      <div class="prog-bar" style="margin:9px 0 5px;"><div class="fill" style="width:${x.prog}%;background:${x.color};"></div></div>
+      <div style="font-size:11px;color:var(--slate);">${x.next}</div>
+    </div>`).join('')}
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px;">
+  <div class="panel" style="margin-bottom:0;">
+    <div class="panel-head"><h2>Upcoming Schedule</h2><button class="btn sm ghost" onclick="setView('schedule')">View all →</button></div>
+    ${state.schedule.slice(0,4).map(s=>`
+    <div class="sch-row">
+      <div class="sch-date">${fmt(s.date)}<small>${Math.abs(daysUntil(s.date))}d ${daysUntil(s.date)>=0?'away':'ago'}</small></div>
+      <div>
+        <div class="sch-topic ${s.topic?'':'empty'}">${esc(s.topic)||'Topic TBD'}</div>
+        <div class="sch-chips">${layerBadge(s.layer)}${statusBadge(s.status)}</div>
+      </div>
+      <div class="sch-act"><button>View</button></div>
+    </div>`).join('')}
+  </div>
+  <div class="panel" style="margin-bottom:0;">
+    <div class="panel-head"><h2>Top L3 Signals</h2><button class="btn sm ghost" onclick="setView('research')">All signals →</button></div>
+    <p class="section-lead" style="margin-bottom:10px;">Highest-scored bi-weekly drop candidates awaiting classification.</p>
+    ${state.research.filter(r=>r.status==='new'&&r.layer==='L3').slice(0,4).map(r=>`
+    <div class="signal-row" style="padding:9px 0;">
+      <div class="score-ring" style="--pct:${r.score};width:36px;height:36px;flex:0 0 36px;"><span class="sv" style="font-size:10px;">${r.score}</span></div>
+      <div class="sig-body">
+        <div class="sig-title" style="font-size:12.5px;">${esc(r.topic)}</div>
+        <div class="sig-meta"><span class="sev ${r.sev}">${r.sev.toUpperCase()}</span></div>
+      </div>
+      <button class="btn sm orange" onclick="pickAndClassify('${r.id}')">→</button>
+    </div>`).join('')}
+  </div>
+</div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESEARCH QUEUE
+═══════════════════════════════════════════════════ */
+function renderResearch() {
+  const v = document.getElementById('view');
+  const filter = state.researchFilter;
+  let items = state.research;
+  if(filter !== 'all') items = items.filter(r=>r.layer===filter);
+  const allLayers = ['all','L1','L2','L3','L4','P2'];
+
+  v.innerHTML = `
+${trackerBanner()}
+<div class="page-header">
+  <p class="eyebrow">Step 1 · AI Agent</p>
+  <h1 class="page-title">Research Queue</h1>
+  <p class="page-sub">The Research Agent monitors the full AI landscape — all platforms, all trends, all tools — not just the 4 named platforms. It scores each signal by relevance, depth, and professional applicability, then surfaces the top candidates for LD Lead review.</p>
+</div>
+
+<div class="panel" style="border-left:4px solid var(--lm-green);">
+  <div class="panel-head"><h2>🤖 Research Agent</h2><span class="badge ai">● Automated · daily headless run</span></div>
+  <p class="section-lead">Scans: OpenAI · Anthropic · Google · Microsoft · GitHub · HuggingFace · ArXiv · TechCrunch · VentureBeat · Wired + keywords: agentic AI, vibe coding, low-code, automation + emerging tools: Lovable, Base44, Cursor, Replit, Bolt.new</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn orange" onclick="simulateAgent()">▶ Run Agent Now</button>
+    <button class="btn ghost" onclick="openAgentConfig()">⚙ Configure parameters</button>
+    <span style="font-size:12px;color:var(--slate);">Last run: Today 09:00 UTC · Next: Tomorrow 09:00</span>
+  </div>
+  <div id="agent-output" style="display:none;" class="agent-out"></div>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+  <span style="font-size:13px;font-weight:700;color:var(--slate);">Filter:</span>
+  ${allLayers.map(l=>`<button class="btn sm ${filter===l?'primary':'ghost'}" onclick="filterResearch('${l}')">${l==='all'?'All layers':l}</button>`).join('')}
+  <span style="margin-left:auto;font-size:12px;color:var(--slate);">${items.filter(i=>i.status==='new').length} awaiting classification</span>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>Candidate Queue</h2><span class="hint">Sorted by score · Click a signal to load it into Review & Decide</span></div>
+  ${items.sort((a,b)=>b.score-a.score).map(r=>`
+  <div class="signal-row" id="sig-${r.id}">
+    <div class="score-ring" style="--pct:${r.score}"><span class="sv">${r.score}</span></div>
+    <div class="sig-body">
+      <div class="sig-title">${esc(r.topic)}</div>
+      <div class="sig-meta">
+        ${layerBadge(r.layer)}<span class="sev ${r.sev}">${r.sev.toUpperCase()}</span>
+        <span style="font-size:11.5px;">📡 ${esc(r.source)}</span>
+        <span style="font-size:11.5px;">📅 ${r.detected}</span>
+      </div>
+      <div class="sig-why">💡 ${esc(r.why)}</div>
+    </div>
+    <div class="sig-right">
+      ${statusBadge(r.status)}
+      ${r.status==='new'
+        ? `<button class="btn sm green" onclick="pickAndClassify('${r.id}')">→ Review &amp; Decide</button>`
+        : `<span style="font-size:12px;color:var(--slate);">In pipeline ✓</span>`
+      }
+    </div>
+  </div>`).join('')}
+</div>`;
+}
+
+function filterResearch(l) { state.researchFilter=l; renderResearch(); }
+
+function simulateAgent() {
+  const out = document.getElementById('agent-output');
+  if(!out) return;
+  out.style.display='block';
+  const pool = [
+    {topic:'Anthropic Claude 4 Sonnet — extended thinking mode',layer:'L3',score:89,sev:'high'},
+    {topic:'OpenAI Canvas — collaborative document editing GA',layer:'L3',score:82,sev:'high'},
+    {topic:'Notion AI — full multi-step agent in workspace',layer:'L3',score:77,sev:'med'},
+    {topic:'Lovable.dev — no-code app building goes viral',layer:'L3',score:85,sev:'high'},
+    {topic:'Google NotebookLM Plus — professional features launch',layer:'L3',score:74,sev:'med'},
+  ];
+  const pick = pool[Math.floor(Math.random()*pool.length)];
+  out.innerHTML = '<span class="blink">▋</span>';
+  let log='';
+  const lines=[
+    '[09:00:01] Research Agent started',
+    '[09:00:03] Scanning: OpenAI, Anthropic, Google, Microsoft release notes...',
+    '[09:00:05] Scanning: GitHub, HuggingFace, ArXiv, TechCrunch, VentureBeat...',
+    '[09:00:08] Monitoring: vibe coding, agentic AI, low-code, automation trends...',
+    '[09:00:11] Scanning: Lovable, Base44, Cursor, Replit, Bolt.new, Notion AI...',
+    '[09:00:14] Cross-referencing against catalogue v3.0...',
+    '[09:00:17] Gap analysis complete. Evaluating instructional significance...',
+    '',
+    `[09:00:19] ✦ NEW CANDIDATE — Score: ${pick.score}/100`,
+    `[09:00:19] Topic:    ${pick.topic}`,
+    `[09:00:20] Layer:    ${pick.layer} · Bi-weekly Update Drop`,
+    `[09:00:20] Severity: ${pick.sev.toUpperCase()}`,
+    '[09:00:21] Rationale: Working professional can apply this immediately',
+    '[09:00:22] Delta check: net-new vs current catalogue ✓',
+    '',
+    '[09:00:23] Appending to research queue... ✓',
+    '[09:00:24] Sweep complete.',
+  ];
+  let i=0;
+  const iv=setInterval(()=>{
+    if(i<lines.length){log+=lines[i]+'\n';out.innerHTML=esc(log)+'<span class="blink">▋</span>';i++;}
+    else{
+      clearInterval(iv);
+      out.innerHTML=esc(log);
+      state.research.unshift({
+        id:'r_'+Date.now(),topic:pick.topic,source:'Agent sweep',layer:pick.layer,
+        score:pick.score,sev:pick.sev,why:'Auto-detected by Research Agent sweep',
+        platform:'All',detected:NOW.toISOString().slice(0,10),status:'new'
+      });
+      updateResearchBadge();
+      toast('New L3 signal added to queue',true,'Click "→ Review & Decide" to process it');
+      setTimeout(renderResearch,200);
+    }
+  },75);
+}
+
+function openAgentConfig() {
+  openModal('Agent Scan Parameters', `
+    <p style="color:var(--slate);font-size:13px;margin-top:0;">These parameters define what the Research Agent monitors. The agent covers the full AI world, not just the 4 named platforms.</p>
+    <div style="display:grid;gap:12px;">
+      ${[
+        {l:'Platform watchers',v:'OpenAI · Anthropic · Google · Microsoft',n:'Official release notes and changelogs'},
+        {l:'Broad AI landscape',v:'GitHub · HuggingFace · ArXiv (cs.AI, cs.HC)',n:'Research with direct professional application'},
+        {l:'Industry news',v:'TechCrunch · VentureBeat · Wired · Bloomberg',n:'Filtered: professional applicability ≥ 60'},
+        {l:'Trend keywords',v:'agentic AI · vibe coding · low-code · automation',n:'General concepts beyond platform-specific'},
+        {l:'Emerging tools',v:'Lovable · Base44 · Cursor · Replit · Bolt.new',n:'Non-platform tools with learner relevance'},
+        {l:'Score threshold',v:'Surface if score ≥ 60',n:'Sub-threshold items archived, not surfaced'},
+      ].map(r=>`
+      <div style="background:var(--mist);border-radius:9px;padding:13px;">
+        <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${r.l}</div>
+        <div style="font-family:var(--mono);font-size:11.5px;color:var(--ink);margin-bottom:3px;">${r.v}</div>
+        <div style="font-size:11px;color:var(--slate);">${r.n}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn primary" onclick="toast('Parameters saved',true);closeModal();">Save</button>
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+/* Key wiring: load a signal into Review & Decide */
+function pickAndClassify(id) {
+  const r = state.research.find(x=>x.id===id);
+  if(!r) return;
+  r.status = 'decided';
+  state.activeItem = r;
+  state.activeStage = 1;
+  state.classify.selected = r.layer;
+  updateResearchBadge();
+  // Re-render classify in place if already on that view, otherwise navigate
+  if(state.currentView === 'classify') {
+    renderClassify();
+    window.scrollTo({top:0,behavior:'smooth'});
+  } else {
+    toast('Loaded for review', true, r.topic.slice(0,55));
+    setView('classify');
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   REVIEW & DECIDE  (replaces Classify & Score)
+═══════════════════════════════════════════════════ */
+function renderClassify() {
+  const v = document.getElementById('view');
+  const item = state.activeItem;
+  const cf = state.classifyFilter || 'all';
+  let pending = state.research.filter(x=>x.status==='new');
+  if(cf !== 'all') pending = pending.filter(x=>x.layer===cf);
+
+  v.innerHTML = `
+${trackerBanner()}
+<div class="page-header">
+  <p class="eyebrow">Step 2 · LD Lead Decision</p>
+  <h1 class="page-title">Review &amp; Decide</h1>
+  <p class="page-sub">For each surfaced signal, review the topic summary, understand what changed, how it impacts learners, and where current courses have gaps — then decide to proceed to blueprint or reject.</p>
+</div>
+
+${item ? renderReviewCard(item) : `
+<div style="background:var(--mist);border:1px dashed var(--hair);border-radius:12px;padding:18px 22px;margin-bottom:22px;display:flex;align-items:center;gap:14px;">
+  <span style="font-size:22px;">👇</span>
+  <div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:3px;">Select a signal to review</div>
+    <div style="font-size:13px;color:var(--slate);">Click any signal in the queue below, or go back to <button class="btn sm ghost" onclick="setView('research')">Research Queue</button></div>
+  </div>
+</div>`}
+
+<!-- PENDING QUEUE -->
+<div class="panel">
+  <div class="panel-head">
+    <h2>Signal Queue</h2>
+    <div class="layer-filter-pills" style="margin:0 0 0 auto;">
+      ${['all','L1','L2','L3','L4','P2'].map(l=>`<span class="lfp ${cf===l?'on':''} ${l!=='all'?l.toLowerCase():''}" onclick="setClassifyFilter('${l}')">${l==='all'?'All':l}</span>`).join('')}
+    </div>
+    <span class="hint">${pending.length} awaiting review</span>
+  </div>
+  ${pending.length===0?`<p class="section-lead">No signals matching this filter.</p>`:
+  pending.sort((a,b)=>b.score-a.score).map(r=>`
+  <div class="rv-row ${item&&item.id===r.id?'active-row':''}" onclick="pickAndClassify('${r.id}')">
+    <div class="score-ring" style="--pct:${r.score}"><span class="sv">${r.score}</span></div>
+    <div class="sig-body">
+      <div class="sig-title">${esc(r.topic)}</div>
+      <div class="sig-meta">${layerBadge(r.layer)}<span class="sev ${r.sev}">${r.sev.toUpperCase()}</span><span style="font-size:11.5px;">📡 ${esc(r.source)}</span><span style="font-size:11.5px;">📅 ${r.detected}</span></div>
+      <div class="sig-why">💡 ${esc(r.why)}</div>
+    </div>
+    <div class="sig-right" style="gap:6px;">
+      ${item&&item.id===r.id?`<span class="badge orange">Reviewing</span>`:`<button class="btn sm green">Review →</button>`}
+    </div>
+  </div>`).join('')}
+</div>`;
+}
+
+function renderReviewCard(item) {
+  const detail = getTopicDetail(item.id);
+  const isL3 = item.layer === 'L3';
+  const isL1 = item.layer === 'L1';
+  const isL2 = item.layer === 'L2';
+  const layerColour = isL3?'var(--lm-green)':isL1?'var(--l1)':isL2?'var(--l2)':'var(--l4)';
+
+  // Gap status helpers
+  const gapIcon = s => s==='missing'?'<span style="color:var(--p2);font-weight:800;">✕ Missing</span>':s==='outdated'?'<span style="color:#8a4811;font-weight:700;">⚠ Outdated</span>':'<span style="color:#0f5c3a;font-weight:700;">✓ Current</span>';
+
+  return `
+<!-- TOPIC HEADER CARD -->
+<div class="rd-header" style="margin-bottom:20px;">
+  <div class="rd-layer-pill" style="background:${layerColour}22;border-color:${layerColour}55;">
+    <span style="width:8px;height:8px;border-radius:50%;background:${layerColour};display:inline-block;"></span>
+    ${layerBadge(item.layer)} &nbsp;·&nbsp; <span class="sev ${item.sev}" style="background:rgba(255,255,255,.15);color:#fff;">${item.sev.toUpperCase()}</span>
+  </div>
+  <div class="rd-topic">${esc(item.topic)}</div>
+  <div class="rd-meta">
+    <span>📡 ${esc(item.source)}</span>
+    <span>📅 Detected ${item.detected}</span>
+    <span>🖥 ${esc(item.platform||'All platforms')}</span>
+  </div>
+  <div class="rd-score-bar">
+    <span class="rd-score-pill">${item.score}</span>
+    <span class="rd-score-label">Relevance score · ${item.score>=85?'Top priority':item.score>=70?'Medium priority':'Standard priority'}</span>
+    <button class="btn sm ghost" style="margin-left:auto;color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.2);" onclick="state.activeItem=null;state.activeStage=0;state.classify.selected=null;renderClassify();">✕ Clear selection</button>
+  </div>
+</div>
+
+<!-- 2-UP SUMMARY CARDS -->
+<div class="rd-grid">
+  <div class="rd-card">
+    <div class="rd-card-head">
+      <div class="rd-card-icon" style="background:var(--chegg-orange-soft);">🆕</div>
+      <div class="rd-card-title">What's new / what happened</div>
+    </div>
+    <p>${esc(detail.whatsNew)}</p>
+  </div>
+  <div class="rd-card">
+    <div class="rd-card-head">
+      <div class="rd-card-icon" style="background:var(--l2-soft);">🔄</div>
+      <div class="rd-card-title">What changed &amp; why it matters</div>
+    </div>
+    <p>${esc(detail.whatChanged)}</p>
+  </div>
+</div>
+
+<div class="rd-grid">
+  <div class="rd-card">
+    <div class="rd-card-head">
+      <div class="rd-card-icon" style="background:var(--lm-green-soft);">👤</div>
+      <div class="rd-card-title">Learner impact</div>
+    </div>
+    <p>${esc(detail.learnerImpact)}</p>
+  </div>
+  <div class="rd-card">
+    <div class="rd-card-head">
+      <div class="rd-card-icon" style="background:var(--l4-soft);">📦</div>
+      <div class="rd-card-title">Proposed deliverable</div>
+    </div>
+    <p>${esc(detail.deliverable)}</p>
+  </div>
+</div>
+
+<!-- DELTA / COURSE GAP TABLE -->
+<div class="rd-delta">
+  <div class="rd-delta-head">
+    <div class="rd-card-icon" style="background:var(--p2-soft);">Δ</div>
+    <div style="font-weight:800;font-size:14px;">Course Impact &amp; Delta Gap</div>
+    <span class="badge l3" style="margin-left:8px;">Where coverage is missing or outdated</span>
+  </div>
+  <div class="rd-delta-row">
+    <div class="rd-delta-cell head">Course / Layer</div>
+    <div class="rd-delta-cell head">Coverage status</div>
+    <div class="rd-delta-cell head">Gap detail</div>
+    <div class="rd-delta-cell head">Action needed</div>
+  </div>
+  ${detail.courseImpact.map(ci=>`
+  <div class="rd-delta-row">
+    <div class="rd-delta-cell area">${esc(ci.course)}</div>
+    <div class="rd-delta-cell">${gapIcon(ci.gap)}</div>
+    <div class="rd-delta-cell" style="font-size:12px;color:var(--slate);">${esc(ci.note)}</div>
+    <div class="rd-delta-cell" style="font-size:12px;">${ci.gap==='ok'?'<span style="color:var(--slate);">No action</span>':ci.gap==='missing'?'<span style="color:var(--p2);font-weight:700;">Create new</span>':'<span style="color:#8a4811;font-weight:700;">Update</span>'}</div>
+  </div>`).join('')}
+</div>
+
+<!-- DECISION ACTIONS -->
+<div class="rd-actions">
+  <div style="flex:1;">
+    <div style="font-weight:800;font-size:14px;margin-bottom:4px;">LD Lead Decision</div>
+    <div style="font-size:13px;color:var(--slate);">Layer routing: <strong>${item.layer} · ${LAYERS[item.layer].name}</strong>${item.layer==='L3'?' (bi-weekly drop — 14-day sprint)':item.layer==='L1'?' (quarterly review — ~3 month cycle)':item.layer==='L2'?' (platform course update — triggered)':''}</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button class="btn sm ghost" style="border-color:var(--l2-line);color:var(--l2);" onclick="openLayerOverride()">↺ Change layer</button>
+    <div class="divider"></div>
+    <button class="btn danger sm" onclick="rejectSignal()">✕ Reject — not proceeding</button>
+    <button class="btn green" onclick="approveClassify()">✓ Proceed to Blueprint →</button>
+  </div>
+</div>`;
+}
+
+function openLayerOverride() {
+  openModal('Change Layer Assignment', `
+    <p style="color:var(--slate);font-size:13px;margin-top:0;">Override the AI-suggested layer. Selecting a layer updates the routing for this item.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+      ${Object.entries(LAYERS).map(([k,l])=>`
+      <div class="layer-card ${k.toLowerCase()} ${state.classify.selected===k?'selected':''}" onclick="selectLayerOverride('${k}')" style="cursor:pointer;">
+        <div class="lc-tick">✓</div>
+        <div class="lc-num">${k}</div>
+        <div class="lc-name">${l.name}</div>
+        <div class="lc-cad">⏱ ${l.cadence}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn primary" onclick="closeModal()">Confirm</button>
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function selectLayerOverride(k) {
+  state.classify.selected = k;
+  if(state.activeItem) state.activeItem.layer = k;
+  toast(`Layer changed to ${k} · ${LAYERS[k].name}`, true);
+  closeModal();
+  renderClassify();
+}
+
+function setClassifyFilter(l) { state.classifyFilter=l; renderClassify(); }
+
+function selectLayer(k) {
+  state.classify.selected = k;
+  if(state.activeItem) state.activeItem.layer = k;
+  renderClassify();
+}
+
+function updateRubric(el) {
+  state.classify.rubric[el.dataset.k] = parseInt(el.value);
+  const rv = document.getElementById('rv-'+el.dataset.k);
+  if(rv) rv.textContent = el.value;
+}
+
+function computeReco() {
+  const r = state.classify.rubric;
+  const vals = Object.values(r);
+  const avg = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+  let layer, reason;
+  if(r.scopeNew>75&&r.depthNeed>75){layer='L1';reason='High depth + scope → foundational';}
+  else if(r.deltaSize>78&&r.depthNeed>65){layer='L2';reason='Large delta → platform course update';}
+  else if(r.cadence>80&&avg>55){layer='L3';reason='Strong cadence fit → bi-weekly drop';}
+  else if(r.assetReuse>65){layer='L4';reason='High reuse → catch-up module';}
+  else{layer='P2';reason='Domain scope → Program 2 track';}
+  const priority = avg>72?'High':avg>52?'Medium':'Low';
+  return {layer, priority, avg, text:`Recommended: ${layer} · Priority ${priority}`, reason};
+}
+
+function approveClassify() {
+  const item = state.activeItem;
+  if(!item) { toast('Select a signal first'); return; }
+  const finalLayer = state.classify.selected || item.layer;
+  item.layer = finalLayer;
+  item.status = 'decided';
+  state.activeStage = 2;
+  const kItem = {
+    id:'kf_'+Date.now(),
+    title:item.topic.slice(0,70),
+    layer:finalLayer,
+    sev:item.sev,
+    due:state.schedule.find(s=>s.status==='planned')?.date || '2026-06-26',
+    assign:'LD Lead',
+    fromFlow:true,
+    sourceId:item.id,
+  };
+  state.kanban.blueprint.push(kItem);
+  state.blueprintItem = kItem;
+  toast('✓ Proceeding to Blueprint', true, item.topic.slice(0,50));
+  setView('blueprint');
+}
+
+function rejectSignal() {
+  if(state.activeItem) { state.activeItem.status='rejected'; state.activeItem=null; state.activeStage=0; }
+  state.classify.selected=null;
+  toast('Signal rejected and archived');
+  renderClassify();
+}
+
+/* ═══════════════════════════════════════════════════
+   BLUEPRINT
+═══════════════════════════════════════════════════ */
+function renderBlueprint() {
+  const v = document.getElementById('view');
+  const flowItem = state.blueprintItem; // the item that just came through classify
+
+  const gapData = [
+    {area:'AI Fundamentals — agentic concepts',l1:'Current v2.0',l2:'N/A',l3:'May 2026 drop',status:'current'},
+    {area:'Prompt engineering — chain-of-thought',l1:'v2.0 covers basics',l2:'N/A',l3:'Outdated pre-2026',status:'outdated'},
+    {area:'Claude Projects & Notebooks',l1:'Missing',l2:'v1.0 — outdated',l3:'No drop yet',status:'missing'},
+    {area:'Vibe coding workflows',l1:'Not covered',l2:'N/A',l3:'In production',status:'outdated'},
+    {area:'Agentic multi-step patterns',l1:'High level only',l2:'N/A',l3:'Approved Jun W4',status:'outdated'},
+    {area:'Responsible AI — FTC / EU AI Act',l1:'v2.0 current',l2:'N/A',l3:'Not needed',status:'current'},
+    {area:'Gemini 2.5 Flash — extended context',l1:'Not covered',l2:'Needs update',l3:'No drop yet',status:'missing'},
+    {area:'AI for FP&A professionals',l1:'Not in scope',l2:'N/A',l3:'Not in scope',status:'missing'},
+  ];
+
+  // Build select options — include the flow item if present
+  const flowOption = flowItem
+    ? `<option value="flow-item" selected>${esc(flowItem.title.slice(0,60))}</option>`
+    : '';
+
+  v.innerHTML = `
+${trackerBanner()}
+<div class="page-header">
+  <p class="eyebrow">Step 3 · Course Lead + Claude</p>
+  <h1 class="page-title">Blueprint & Gap Analysis</h1>
+  <p class="page-sub">Course Lead reviews the gap analysis, then Claude generates all production documents at once: briefs, lesson outlines, activity worksheets, video storyboards, and knowledge checks (~25 min review).</p>
+</div>
+
+${flowItem ? `
+<div style="background:linear-gradient(135deg,#0f2a1a,#1a3a2a);border:1px solid var(--lm-green-line);border-radius:12px;padding:16px 20px;margin-bottom:20px;color:#E5F3EC;display:flex;align-items:flex-start;gap:12px;">
+  <span style="font-size:18px;">🎯</span>
+  <div style="flex:1;">
+    <div style="font-weight:700;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#7FD0A6;margin-bottom:4px;">Item from Review & Decide</div>
+    <div style="font-weight:800;font-size:15px;margin-bottom:6px;">${esc(flowItem.title)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${layerBadge(flowItem.layer)}<span class="sev ${flowItem.sev}">${flowItem.sev.toUpperCase()}</span><span style="font-size:12px;color:rgba(255,255,255,.6);">Assignee: ${flowItem.assign}</span></div>
+  </div>
+  <button class="btn sm ghost" style="color:#7FD0A6;border-color:rgba(127,208,166,.3);" onclick="state.blueprintItem=null;renderBlueprint()">✕ Clear</button>
+</div>` : ''}
+
+<!-- GAP TABLE -->
+<div class="panel">
+  <div class="panel-head"><h2>Gap Analysis — Catalogue Coverage</h2><span class="hint">Vector Repository · Jun 11, 2026</span></div>
+  <p class="section-lead">What is missing, outdated, or covered across layers. Use this to confirm what blueprint docs to generate.</p>
+  <div style="overflow-x:auto;">
+  <table class="gap-table" style="margin-bottom:14px;">
+    <thead><tr><th>Content Area</th><th>L1 Foundation</th><th>L2 Platform</th><th>L3 Drop</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      ${gapData.map(g=>`
+      <tr>
+        <td style="font-weight:600;">${g.area}</td>
+        <td style="font-size:12.5px;">${g.l1}</td>
+        <td style="font-size:12.5px;">${g.l2}</td>
+        <td style="font-size:12.5px;">${g.l3}</td>
+        <td><span class="gap-badge ${g.status}">${g.status==='current'?'✓ Current':g.status==='outdated'?'⚠ Outdated':'✕ Missing'}</span></td>
+        <td><button class="btn sm ghost" onclick="prefillBlueprintFromGap(${JSON.stringify(g.area)})">Use →</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- BLUEPRINT GENERATOR -->
+<div class="panel" style="border-left:4px solid var(--chegg-orange);">
+  <div class="panel-head"><h2>⚡ Blueprint Generator</h2><span class="badge ai">● Claude · all docs at once</span></div>
+  <p class="section-lead">Claude generates <strong>all production documents at once</strong>: brief, lesson outline, activity worksheets, video storyboards, knowledge checks. Not piecemeal — everything in one pass, ready for SME + LD Lead review in ~25 minutes.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+    <div>
+      <label style="display:block;font-weight:700;font-size:13px;margin-bottom:6px;">Content item</label>
+      <select id="bp-item" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--hair);font-size:13px;background:var(--paper);">
+        ${flowOption}
+        <option value="">— Select item —</option>
+        <option value="vibe-coding">Vibe Coding with GitHub Copilot Workspace — L3 Drop</option>
+        <option value="claude-projects">Claude Projects & Notebooks — L2 Update</option>
+        <option value="agentic-patterns">Agentic AI Multi-step Patterns — L3 Drop</option>
+        <option value="gemini-flash">Gemini 2.5 Flash Extended Context — L3 Drop</option>
+        <option value="o3-reasoning">OpenAI o3 Reasoning Mode for Professionals — L3 Drop</option>
+        <option value="l1-quarterly">L1 Foundational Core — Q3 Quarterly Review</option>
+        <option value="fpa-track">AI for FP&A — P2 Domain Track</option>
+      </select>
+    </div>
+    <div>
+      <label style="display:block;font-weight:700;font-size:13px;margin-bottom:6px;">Target layer</label>
+      <select id="bp-layer" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--hair);font-size:13px;background:var(--paper);">
+        ${Object.entries(LAYERS).map(([k,l])=>`<option value="${k}" ${flowItem&&flowItem.layer===k?'selected':''}>${k} · ${l.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn orange" onclick="generateBlueprint()">⚡ Generate all production docs</button>
+    <button class="btn" onclick="openDeltaCheck()">Δ Delta check vs catalogue</button>
+  </div>
+  <div id="bp-output" style="display:none;" class="blueprint-output"></div>
+  <div id="bp-actions" style="display:none;margin-top:16px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn green" onclick="sendToProduction()">📧 Email production team &amp; add to board</button>
+      <button class="btn" onclick="downloadBlueprint()">↓ Download docs</button>
+      <button class="btn ghost" onclick="closeBpOutput()">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ITEMS IN BLUEPRINT STAGE -->
+<div class="panel">
+  <div class="panel-head"><h2>Items in Blueprint Stage</h2><span class="hint">${state.kanban.blueprint.length} items</span></div>
+  ${state.kanban.blueprint.length===0
+    ? '<p class="section-lead">No items currently in blueprint stage.</p>'
+    : state.kanban.blueprint.map(k=>`
+  <div class="signal-row" style="${k.fromFlow?'background:var(--lm-green-soft);border-radius:10px;padding:12px 14px;margin:0 -14px;':''}">
+    ${k.fromFlow?`<div style="width:6px;height:40px;background:var(--lm-green);border-radius:3px;flex:0 0 6px;"></div>`:''}
+    <div class="sig-body">
+      <div class="sig-title">${esc(k.title)} ${k.fromFlow?'<span style="font-size:11px;color:var(--lm-green);font-weight:700;"> ← just approved</span>':''}</div>
+      <div class="sig-meta">${layerBadge(k.layer)}<span class="sev ${k.sev}">${k.sev.toUpperCase()}</span><span style="font-size:11.5px;">👤 ${esc(k.assign)}</span><span style="font-size:11.5px;">📅 ${k.due}</span></div>
+    </div>
+    <div class="sig-right">
+      <button class="btn sm orange" onclick="selectBlueprintItem('${k.id}')">⚡ Generate docs</button>
+      <button class="btn sm green" onclick="sendItemToProduction('${k.id}')">→ Production</button>
+    </div>
+  </div>`).join('')}
+</div>`;
+}
+
+function prefillBlueprintFromGap(area) {
+  const sel = document.getElementById('bp-item');
+  if(sel) { sel.value=''; sel.options[0].text = area.slice(0,55); sel.options[0].value='gap-'+area.slice(0,20).replace(/\s/g,'-').toLowerCase(); sel.value=sel.options[0].value; }
+}
+
+function selectBlueprintItem(id) {
+  // find in kanban.blueprint, set as active blueprint context
+  const item = state.kanban.blueprint.find(k=>k.id===id);
+  if(!item) return;
+  state.blueprintItem = item;
+  const sel = document.getElementById('bp-item');
+  if(sel) { sel.options[1].text=item.title.slice(0,55); sel.options[1].value='flow-item'; sel.value='flow-item'; }
+  const lsel = document.getElementById('bp-layer');
+  if(lsel) lsel.value = item.layer;
+  generateBlueprint();
+}
+
+const BLUEPRINT_DOCS = {
+  'flow-item': null, // generated dynamically from activeItem
+  'vibe-coding':{title:'Vibe Coding with GitHub Copilot Workspace',layer:'L3',obj:'Learner can use GitHub Copilot Workspace to convert a plain-English task description into a working code structure without prior coding knowledge.',outline:['1. Context: what vibe coding is and why it matters now','2. Interface walkthrough: Copilot Workspace in 3 minutes','3. Workflow: description → implementation plan → code → run','4. Practical demo: build a weekly sales summary emailer','5. Key takeaway + 2 application knowledge checks'],assets:['Screencast: Copilot Workspace demo (4 min 1080p)','Infographic: vibe coding workflow — 5-step visual','Practice scenario card: real business task','2 MCQs + answer keys (application, not recall)'],notes:'Ground ALL examples in business tasks, not developer tasks. Non-engineer audience.'},
+  'claude-projects':{title:'Claude Projects & Notebooks — GA Launch',layer:'L2',obj:'Learner can create a Claude Project with persistent instructions and use Notebooks to share knowledge across sessions.',outline:['1. What changed: Projects GA + Notebooks beta','2. How it works: persistent context + shared knowledge base','3. Hands-on: 5-step Project setup walkthrough','4. Business scenario: marketing team shared project','5. Knowledge check'],assets:['Demo screencast (3 min)','Infographic: Projects vs. standard chat','Interactive fill-in scenario','2 MCQs + answer keys'],notes:'SME: validate Project sharing permissions and Notebook availability at publish date.'},
+  'agentic-patterns':{title:'Agentic AI Multi-step Task Patterns',layer:'L3',obj:'Learner can design a 3-step agentic workflow using any major AI tool to automate a recurring business task.',outline:['1. What agentic means: from single prompt to task chains','2. Core pattern: goal → plan → sub-tasks → verify','3. Walk through: building a competitor monitoring agent','4. Cross-tool applicability: ChatGPT, Claude, Gemini','5. Key takeaway + knowledge check'],assets:['Topic video (5 min, slide-based)','Process map infographic','Template worksheet: workflow designer','2 MCQs + answer keys'],notes:'Must work with all 4 platforms — keep tool-agnostic where possible.'},
+  'gemini-flash':{title:'Gemini 2.5 Flash — 1M Token Context for Professionals',layer:'L3',obj:'Learner can effectively use Gemini 2.5 Flash\'s extended context window to analyze long documents and multi-part datasets in a single prompt.',outline:['1. Why context window size matters to professionals','2. What changed: 1M tokens vs previous limits','3. Demo: analyzing a 100-page report in one prompt','4. Practical patterns: when to use extended context','5. Key takeaway + knowledge check'],assets:['Screencast demo (3 min)','Comparison infographic: before vs after context limit','Sample prompt templates','2 MCQs + answer keys'],notes:'Use realistic business documents (annual reports, contracts) in demos.'},
+  'o3-reasoning':{title:'OpenAI o3 Reasoning Mode for Professionals',layer:'L3',obj:'Learner can select between standard and reasoning mode in ChatGPT and apply reasoning mode to multi-step analysis tasks.',outline:['1. What reasoning mode is and when it activates','2. Standard vs reasoning: cost, speed, quality tradeoffs','3. Best use cases: financial modeling, legal analysis, planning','4. Demo: complex scenario with reasoning on vs off','5. Key takeaway + knowledge check'],assets:['Side-by-side screencast (4 min)','Decision guide infographic','Practice prompt set','2 MCQs + answer keys'],notes:'Show concrete business examples where reasoning clearly outperforms standard mode.'},
+  'l1-quarterly':{title:'L1 Foundational Core — Q3 2026 Quarterly Review',layer:'L1',obj:'Updated foundational course reflects current AI landscape, agentic AI, and responsible AI frameworks as of Q3 2026.',outline:['Module 1: Core AI concepts (refresh agentic AI)','Module 2: Prompt engineering (add reasoning models, chain-of-thought)','Module 3: Evaluating AI tools (update landscape)','Module 4: Responsible AI (FTC Order, EU AI Act update)','Module 5: Real-world applications (refresh case studies)'],assets:['7 revised lesson briefs','7 updated video scripts','5 revised activity worksheets','Updated assessment bank (20 items)','Revised module manifests'],notes:'Stuart: agentic AI section definitions shifted significantly since v2.0. Full review needed.'},
+  'fpa-track':{title:'AI for FP&A Professionals — P2 Domain Track',layer:'P2',obj:'Learner can build an AI-assisted financial model and automate a recurring FP&A workflow using low-code AI tools.',outline:['1. AI in FP&A: the current state','2. Financial modeling with AI assistance','3. Automating variance analysis','4. Risk flagging with AI agents','5. Portfolio capstone project brief'],assets:['6 lesson briefs','6 video scripts','Dataset: realistic P&A sample data','Assessment bank (15 items)','Capstone project brief'],notes:'SME must have active FP&A / finance automation practitioner experience. Verify all tool integrations.'},
+};
+
+function generateBlueprint() {
+  const sel = document.getElementById('bp-item');
+  const layer = document.getElementById('bp-layer')?.value || 'L3';
+  if(!sel||!sel.value){toast('Select a content item first');return;}
+
+  const out = document.getElementById('bp-output');
+  const acts = document.getElementById('bp-actions');
+  if(!out||!acts) return;
+  out.style.display='block';
+  out.innerHTML='<span class="blink">▋ Claude generating all production documents...</span>';
+
+  let d = BLUEPRINT_DOCS[sel.value];
+  // If flow-item or gap item, generate dynamically from active item or selection text
+  if(!d) {
+    const title = sel.options[sel.selectedIndex]?.text || sel.value.replace(/-/g,' ');
+    const ai = state.activeItem;
+    d = {
+      title: ai ? ai.topic : title,
+      layer,
+      obj: `Learner can understand and apply ${ai?ai.topic:title} in their professional workflow.`,
+      outline:['1. Context: why this matters now','2. What changed or what is new','3. How it works: step-by-step walkthrough','4. Practical example: real business task','5. Key takeaway + knowledge check'],
+      assets:['Lesson brief + learning objective','Video script / screencast storyboard','Infographic: key concept visual','Activity worksheet: guided practice','2 MCQs + answer keys (application-level)'],
+      notes: ai ? `Validate all technical details against live ${ai.platform||'platform'} state at time of production.` : 'Validate all technical details at time of production.',
+    };
+  }
+
+  const effLayer = d.layer || layer;
+  setTimeout(()=>{
+    out.innerHTML = `<span class="bp-head">══ BLUEPRINT: ${d.title.toUpperCase()} ══</span>
+
+<span class="bp-section">LAYER:</span>       ${effLayer} · ${LAYERS[effLayer]?.name}
+<span class="bp-section">GENERATED:</span>   ${NOW.toISOString().slice(0,19).replace('T',' ')} UTC
+<span class="bp-section">STATUS:</span>      Draft — awaiting SME + LD Lead review
+
+<span class="bp-section">LEARNING OBJECTIVE:</span>
+  ${d.obj}
+
+<span class="bp-section">LESSON OUTLINE (15–30 min target):</span>
+${d.outline.map(l=>'  '+l).join('\n')}
+
+<span class="bp-section">DELIVERABLE PACKAGE (all generated at once):</span>
+${d.assets.map(a=>'  ✦ '+a).join('\n')}
+
+<span class="bp-section">PRODUCTION STANDARDS:</span>
+  Format:  SCORM 1.2 · WCAG 2.1 AA · Mobile + Desktop
+  Video:   1080p · Slide-based + custom illustrations · Closed captions
+  KC:      2 application MCQs + answer keys (not recall)
+
+<span class="bp-section">SME REVIEW NOTES:</span>
+  ${d.notes}
+
+<span class="bp-section">DELTA CHECK:</span>  Net-new vs catalogue — no overlap detected ✓
+<span class="bp-section">ASSET REUSE:</span>  ~30% (intro/outro templates, knowledge check format)
+
+══ END OF BLUEPRINT ══`;
+    acts.style.display='block';
+    state.blueprintGenerated=true;
+    toast('All production docs generated ✓',true,'Brief · Outline · Worksheets · Storyboards · KCs');
+  },1800);
+}
+
+function openDeltaCheck() {
+  openModal('Δ Delta Check vs Catalogue',`
+    <p style="color:var(--slate);font-size:13px;margin-top:0;">Cross-referencing new content against Vector Repository baseline to ensure no redundant production.</p>
+    <div class="agent-out" style="min-height:160px;">Δ DELTA CHECK — ${NOW.toISOString().slice(0,10)}
+
+Comparing against: Catalogue v3.0 (updated 2026-06-10)
+Scope: L1 baseline + all L2/L3 published assets
+
+L1 Foundation v2.0 ............ No direct overlap
+L2 Platform courses ........... Minor overlap (additive, not duplicative)
+L3 Drops (last 60 days) ....... No overlap
+L4 Catch-up modules ........... No overlap
+
+VERDICT: Proceed with production.
+Net-new content: ~85%
+Asset reuse opportunity: ~15% (templates only)</div>
+    <div style="margin-top:16px;"><button class="btn primary" onclick="closeModal()">OK</button></div>`);
+}
+
+function closeBpOutput() {
+  const o=document.getElementById('bp-output');
+  const a=document.getElementById('bp-actions');
+  if(o)o.style.display='none';
+  if(a)a.style.display='none';
+}
+
+function sendToProduction() {
+  const sel = document.getElementById('bp-item');
+  const layer = document.getElementById('bp-layer')?.value || 'L3';
+  const title = sel ? (sel.options[sel.selectedIndex]?.text || 'New item') : 'New item';
+  const ai = state.activeItem;
+  const finalTitle = ai ? ai.topic.slice(0,70) : title.slice(0,70);
+  const newId = 'kp_'+Date.now();
+
+  // Add to production kanban with flash flag
+  state.kanban.production.push({
+    id:newId,
+    title:finalTitle,
+    layer,
+    sev:ai?ai.sev:'med',
+    due:state.schedule.find(s=>s.status==='planned')?.date||'2026-06-26',
+    assign:'Friedl K.',
+    fromFlow:true,
+  });
+  state.newProductionIds.add(newId);
+
+  // Advance tracker to stage 3 (production)
+  state.activeStage = 3;
+
+  // Simulated email notification
+  openModal('📧 Email sent to Production Team',`
+    <div style="background:var(--mist);border-radius:10px;padding:16px;margin-bottom:16px;font-family:Georgia,serif;font-size:13.5px;line-height:1.7;color:#222;">
+      <div style="font-size:11px;font-family:var(--mono);color:var(--slate);margin-bottom:12px;">
+        <strong>From:</strong> LD Lead &lt;ldlead@learningmate.com&gt;<br>
+        <strong>To:</strong> production-team@learningmate.com<br>
+        <strong>Subject:</strong> [Blueprint Ready] ${esc(finalTitle.slice(0,50))} — ${layer}<br>
+        <strong>Date:</strong> ${NOW.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+      </div>
+      <p style="margin:0 0 10px;"><strong>Hi team,</strong></p>
+      <p style="margin:0 0 10px;">The blueprint package for the following item is ready for production:</p>
+      <div style="background:#fff;border-left:4px solid var(--chegg-orange);padding:10px 14px;margin:12px 0;border-radius:0 8px 8px 0;">
+        <strong>${esc(finalTitle)}</strong><br>
+        <span style="font-size:12px;color:var(--slate);">Layer: ${layer} · ${LAYERS[layer]?.name} · Priority: ${ai?ai.sev.toUpperCase():'MED'}</span>
+      </div>
+      <p style="margin:0 0 10px;">All production documents have been generated (brief, lesson outline, activity worksheets, video storyboards, knowledge checks). Please find them in the shared Drive folder.</p>
+      <p style="margin:0 0 10px;"><strong>Key dates:</strong></p>
+      <ul style="margin:0 0 10px;padding-left:20px;">
+        <li>Video screencast: complete by Day 7</li>
+        <li>Infographic + interactions: complete by Day 7</li>
+        <li>QA & SCORM packaging: Days 8–14</li>
+        <li>LMS deploy target: ${state.schedule.find(s=>s.status==='planned')?.date||'2026-06-26'}</li>
+      </ul>
+      <p style="margin:0;"><strong>Assignee:</strong> Friedl K. (media) · Geetika S. (QA)</p>
+    </div>
+    <button class="btn green" onclick="closeModal();setView('production');" style="width:100%;">→ Go to Production Board</button>`);
+
+  // Update schedule if applicable
+  const schSlot = state.schedule.find(s=>s.status==='planned'&&!s.topic);
+  if(schSlot){ schSlot.topic=finalTitle; schSlot.status='drafting'; schSlot.assignee='Friedl K.'; }
+}
+
+function sendItemToProduction(id) {
+  const item = state.kanban.blueprint.find(k=>k.id===id);
+  if(!item) return;
+  // Move it
+  state.kanban.blueprint.splice(state.kanban.blueprint.indexOf(item),1);
+  item.fromFlow = true;
+  const newId = 'kp_'+Date.now(); item.id = newId;
+  state.kanban.production.push(item);
+  state.newProductionIds.add(newId);
+  if(state.activeStage<3) state.activeStage=3;
+  toast('Moved to production — email sent to team',true,item.title.slice(0,50));
+  renderBlueprint();
+}
+
+function downloadBlueprint() {
+  const out = document.getElementById('bp-output');
+  if(!out||!out.textContent.trim()){toast('Generate docs first');return;}
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(out.textContent);
+  a.download='blueprint-'+Date.now()+'.txt';a.click();
+  toast('Blueprint downloaded',true);
+}
+
+/* ═══════════════════════════════════════════════════
+   PRODUCTION BOARD
+═══════════════════════════════════════════════════ */
+function renderProduction() {
+  const v = document.getElementById('view');
+  const cols = [
+    {key:'research',name:'Research / Classify',color:'var(--chegg-orange)'},
+    {key:'classify',name:'Brief & Blueprint',color:'var(--l2)'},
+    {key:'blueprint',name:'SME Review',color:'var(--l4)'},
+    {key:'production',name:'In Production',color:'var(--lm-green)'},
+    {key:'published',name:'Published',color:'var(--slate)'},
+  ];
+
+  v.innerHTML = `
+${trackerBanner()}
+<div class="page-header">
+  <p class="eyebrow">Step 4–5 · Human Teams</p>
+  <h1 class="page-title">Production Board</h1>
+  <p class="page-sub">Every content item tracked from research to LMS publish. Cards with a flashing border are newly arrived — click to acknowledge. Clicking a card opens the detail modal with promote/demote controls.</p>
+</div>
+
+<div class="metrics" style="grid-template-columns:repeat(5,1fr);margin-bottom:18px;">
+  ${cols.map(c=>`
+  <div class="metric" style="--accent:${c.color};">
+    <span class="k">${c.name}</span>
+    <div class="v">${state.kanban[c.key].length}</div>
+    <div class="trend">${state.kanban[c.key].length===0?'Clear':'active'}</div>
+  </div>`).join('')}
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:10px;">
+  <button class="btn sm" onclick="openAddItem()">+ Add item</button>
+</div>
+
+<div class="kanban">
+  ${cols.map(c=>`
+  <div class="kol">
+    <div class="kol-head">
+      <span style="width:9px;height:9px;border-radius:50%;background:${c.color};display:inline-block;flex:0 0 9px;"></span>
+      <span class="kh-name">${c.name}</span>
+      <span class="kh-count">${state.kanban[c.key].length}</span>
+    </div>
+    ${state.kanban[c.key].length===0
+      ? `<div style="font-size:12px;color:var(--slate-2);font-style:italic;padding:8px 4px;">Empty</div>`
+      : state.kanban[c.key].map(k=>{
+          const isNew = state.newProductionIds.has(k.id);
+          return `
+    <div class="k-card ${isNew?'new-item':''}" id="kcard-${k.id}" onclick="openKanbanCard('${k.id}','${c.key}')">
+      ${isNew?`<div class="new-pip"></div><div style="font-size:10px;font-weight:700;color:var(--chegg-orange);margin-bottom:5px;">● NEW — click to acknowledge</div>`:''}
+      <div class="kc-title">${esc(k.title)}</div>
+      <div class="kc-meta">${layerBadge(k.layer)}<span class="sev ${k.sev}">${k.sev.toUpperCase()}</span></div>
+      <div class="kc-due ${daysUntil(k.due)<0?'overdue':''}">📅 ${fmt(k.due)} ${daysUntil(k.due)<0?'OVERDUE':daysUntil(k.due)===0?'TODAY':'('+daysUntil(k.due)+'d)'}</div>
+      <div class="kc-assign"><span class="av">${(k.assign||'?').slice(0,2).toUpperCase()}</span>${esc(k.assign||'Unassigned')}</div>
+    </div>`;}).join('')}
+    ${c.key!=='published'?`<button class="btn sm ghost" style="width:100%;margin-top:7px;justify-content:center;border-style:dashed;" onclick="openAddItem('${c.key}')">+ Add</button>`:''}
+  </div>`).join('')}
+</div>`;
+}
+
+function openKanbanCard(id, colKey) {
+  // Acknowledge — remove from new set and stop flash
+  if(state.newProductionIds.has(id)) {
+    state.newProductionIds.delete(id);
+    const el = document.getElementById('kcard-'+id);
+    if(el) el.classList.remove('new-item');
+  }
+
+  let item;
+  for(const col of Object.values(state.kanban)){item=col.find(k=>k.id===id);if(item)break;}
+  if(!item) return;
+
+  const cols=['research','classify','blueprint','production','published'];
+  const curIdx=cols.indexOf(colKey);
+
+  openModal(item.title,`
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      ${layerBadge(item.layer)}${statusBadge(colKey)}<span class="sev ${item.sev}">${item.sev.toUpperCase()}</span>
+      ${item.fromFlow?'<span class="badge ai">🔗 From pipeline flow</span>':''}
+    </div>
+    <div style="display:grid;gap:9px;margin-bottom:18px;">
+      ${[{k:'Assignee',v:item.assign},{k:'Due',v:fmt(item.due)},{k:'Layer',v:LAYERS[item.layer]?.name||item.layer},{k:'Stage',v:colKey}]
+        .map(r=>`<div style="display:flex;gap:12px;font-size:13px;"><span style="font-weight:700;width:90px;color:var(--slate);">${r.k}</span><span>${esc(r.v)}</span></div>`).join('')}
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Status note</label>
+      <textarea id="kcard-note" style="width:100%;border:1px solid var(--hair);border-radius:9px;padding:11px;font-size:13px;min-height:80px;resize:vertical;" placeholder="Add a note, blocker, or status update..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${curIdx<cols.length-1?`<button class="btn green" onclick="promoteCard('${id}','${colKey}','${cols[curIdx+1]}')">→ Move to ${cols[curIdx+1]}</button>`:''}
+      ${curIdx>0?`<button class="btn ghost" onclick="promoteCard('${id}','${colKey}','${cols[curIdx-1]}')">← Move back</button>`:''}
+      <button class="btn ghost" onclick="saveNote('${id}')">Save note</button>
+      <button class="btn ghost" onclick="closeModal()">Close</button>
+    </div>`);
+}
+
+function saveNote(id) {
+  const note = document.getElementById('kcard-note')?.value;
+  if(note) toast('Note saved',true,note.slice(0,60));
+  closeModal();
+}
+
+function promoteCard(id, from, to) {
+  let item;
+  for(const col of Object.values(state.kanban)){item=col.find(k=>k.id===id);if(item)break;}
+  if(!item) return;
+  const arr=state.kanban[from];
+  arr.splice(arr.indexOf(item),1);
+  state.kanban[to].push(item);
+  // If promoted to production, flash
+  if(to==='production'){ state.newProductionIds.add(id); item.fromFlow=true; }
+  // advance tracker if this is the tracked item
+  const stageMap={research:0,classify:1,blueprint:2,production:3,published:4};
+  if(state.activeItem && item.sourceId===state.activeItem.id) {
+    state.activeStage = Math.max(state.activeStage, stageMap[to]||0);
+  }
+  if(to==='published'&&state.activeStage<4) state.activeStage=4;
+  closeModal();
+  toast(`Moved to "${to}"`,true);
+  renderProduction();
+}
+
+function openAddItem(col='research') {
+  openModal('Add Item to Board',`
+    <div style="display:grid;gap:12px;">
+      <div><label style="display:block;font-weight:700;font-size:13px;margin-bottom:5px;">Title</label>
+        <input id="ni-title" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--hair);font-size:13px;" placeholder="e.g. Claude memory feature — L3 Drop"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label style="display:block;font-weight:700;font-size:13px;margin-bottom:5px;">Layer</label>
+          <select id="ni-layer" style="width:100%;padding:9px;border-radius:9px;border:1px solid var(--hair);font-size:13px;">
+            ${Object.keys(LAYERS).map(k=>`<option value="${k}">${k}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-weight:700;font-size:13px;margin-bottom:5px;">Priority</label>
+          <select id="ni-sev" style="width:100%;padding:9px;border-radius:9px;border:1px solid var(--hair);font-size:13px;">
+            <option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option>
+          </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label style="display:block;font-weight:700;font-size:13px;margin-bottom:5px;">Due date</label>
+          <input id="ni-due" type="date" value="2026-06-30" style="width:100%;padding:9px;border-radius:9px;border:1px solid var(--hair);font-size:13px;"></div>
+        <div><label style="display:block;font-weight:700;font-size:13px;margin-bottom:5px;">Assignee</label>
+          <select id="ni-assign" style="width:100%;padding:9px;border-radius:9px;border:1px solid var(--hair);font-size:13px;">
+            <option>LD Lead</option><option>Stuart V.</option><option>Shyama C.</option><option>Friedl K.</option><option>Geetika S.</option><option>Anil T.</option>
+          </select></div>
+      </div>
+      <div><label style="display:block;font-weight:700;font-size:13px;margin-bottom:5px;">Start stage</label>
+        <select id="ni-col" style="width:100%;padding:9px;border-radius:9px;border:1px solid var(--hair);font-size:13px;">
+          <option value="research" ${col==='research'?'selected':''}>Research / Classify</option>
+          <option value="classify" ${col==='classify'?'selected':''}>Brief & Blueprint</option>
+          <option value="blueprint" ${col==='blueprint'?'selected':''}>SME Review</option>
+          <option value="production" ${col==='production'?'selected':''}>In Production</option>
+        </select></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn primary" onclick="addKanbanItem()">Add</button>
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function addKanbanItem() {
+  const title=document.getElementById('ni-title')?.value.trim();
+  if(!title){toast('Enter a title');return;}
+  const id='km_'+Date.now();
+  const item={id,title,layer:document.getElementById('ni-layer').value,sev:document.getElementById('ni-sev').value,due:document.getElementById('ni-due').value,assign:document.getElementById('ni-assign').value,fromFlow:false};
+  const col=document.getElementById('ni-col').value;
+  state.kanban[col].push(item);
+  closeModal();
+  toast('Item added',true);
+  renderProduction();
+}
+
+/* ═══════════════════════════════════════════════════
+   SCHEDULE
+═══════════════════════════════════════════════════ */
+function renderSchedule() {
+  const v = document.getElementById('view');
+  const STEPS=['Discover','Decide','Draft','Produce','Publish'];
+  const SI={planned:0,'new-trigger':0,researching:0,decided:1,drafting:2,'in-review':2,producing:3,published:4};
+
+  v.innerHTML=`
+${trackerBanner()}
+<div class="page-header">
+  <p class="eyebrow">Editorial Calendar</p>
+  <h1 class="page-title">Production Schedule</h1>
+  <p class="page-sub">Rolling bi-weekly L3 drops · platform-triggered L2 updates · quarterly L1 reviews · automated L4 catch-ups.</p>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>14-Day Sprint Calendar</h2><span class="badge ai">● Bi-weekly year-round</span></div>
+  ${state.schedule.map(s=>{
+    const idx=SI[s.status]||0;
+    const over=daysUntil(s.date)<0&&s.status!=='published';
+    return `
+  <div class="sch-row">
+    <div class="sch-date">${fmt(s.date)}<small>${over?'OVERDUE':Math.abs(daysUntil(s.date))+'d '+(daysUntil(s.date)>=0?'away':'ago')}</small></div>
+    <div>
+      <div class="sch-topic ${s.topic?'':'empty'}">${esc(s.topic)||'Topic TBD'}</div>
+      <div class="sch-chips">${layerBadge(s.layer)}${statusBadge(s.status)}${s.assignee?`<span style="font-size:11px;color:var(--slate);">👤 ${esc(s.assignee)}</span>`:''}</div>
+      <div class="stepper" style="margin-top:8px;">
+        ${STEPS.map((st,i)=>{
+          const isDone2 = i < idx || (i === idx && s.status === 'published');
+          const isActive2 = i === idx && s.status !== 'published';
+          return `
+        <div class="step ${isDone2?'done':isActive2?'cur':''}">
+          <div class="step-dot">${isDone2?'✓':''}</div>
+          ${i<STEPS.length-1?`<div class="step-bar"></div>`:''}
+        </div>`;}).join('')}
+        <span style="font-size:11px;color:var(--slate);margin-left:7px;">${s.status==='published'?'Published':STEPS[Math.min(idx,4)]}</span>
+      </div>
+    </div>
+    <div class="sch-act">
+      ${s.status==='published'?`<button class="pub">✓ Published</button>`:`<button onclick="openSprintDetail('${s.id}')">Open →</button>`}
+    </div>
+  </div>`;}).join('')}
+</div>
+
+<div class="panel" style="border-left:4px solid var(--l2);">
+  <div class="panel-head"><h2>⚡ Platform Triggers (L2)</h2><span class="badge l2">● Auto-alert · major releases</span></div>
+  <p class="section-lead">When the Research Agent detects a major platform release, it creates a triggered slot. LD Lead reviews and confirms whether to open a platform course update sprint.</p>
+  <div style="background:var(--l2-soft);border:1px solid var(--l2-line);border-radius:10px;padding:15px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+      <span style="font-size:15px;">⚡</span><div style="font-weight:800;font-size:14px;">Claude Projects & Notebooks — GA</div>
+      <span class="badge l2" style="margin-left:auto;">L2 · Platform</span>
+    </div>
+    <div style="font-size:12.5px;color:var(--slate);margin-bottom:10px;">Detected Jun 10 · Anthropic blog · HIGH · Affects: Claude course v1.0 → v2.0</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn sm orange" onclick="approveL2Trigger()">✓ Approve update sprint</button>
+      <button class="btn sm ghost" onclick="toast('Trigger dismissed')">Dismiss</button>
+    </div>
+  </div>
+  <div style="font-size:12.5px;color:var(--slate);">No other pending triggers.</div>
+</div>`;
+}
+
+function openSprintDetail(id) {
+  const s=state.schedule.find(x=>x.id===id);
+  if(!s) return;
+  openModal(`Sprint: ${s.label}`,`
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;">${layerBadge(s.layer)}${statusBadge(s.status)}</div>
+    <div style="display:grid;gap:9px;margin-bottom:18px;">
+      ${[{k:'Date',v:fmt(s.date)},{k:'Topic',v:s.topic||'TBD'},{k:'Assignee',v:s.assignee||'Unassigned'}]
+        .map(r=>`<div style="display:flex;gap:12px;font-size:13px;"><span style="font-weight:700;width:90px;color:var(--slate);">${r.k}</span><span>${esc(r.v)}</span></div>`).join('')}
+    </div>
+    <div style="background:var(--mist);border-radius:10px;padding:13px;margin-bottom:16px;">
+      <div style="font-weight:700;font-size:12.5px;margin-bottom:8px;">14-Day Sprint</div>
+      ${[{d:'Day 1',l:'Sourcing & delta check',r:'AI Agent'},{d:'Day 2',l:'Topic brief — LD Lead approves',r:'LD Lead + Claude'},{d:'Days 3–7',l:'Concurrent production streams',r:'Production team'},{d:'Days 8–14',l:'Live validation, QA, SCORM, LMS',r:'QA + LD Lead'}]
+        .map(t=>`<div style="display:grid;grid-template-columns:80px 1fr 100px;gap:8px;padding:6px 0;border-bottom:1px solid var(--hair);font-size:12px;">
+          <span style="font-family:var(--mono);font-weight:700;color:var(--chegg-orange);">${t.d}</span><span>${t.l}</span><span style="font-size:10.5px;color:var(--slate);">${t.r}</span></div>`).join('')}
+    </div>
+    <div style="display:flex;gap:9px;">
+      <button class="btn primary" onclick="advanceSprint('${s.id}')">Advance sprint</button>
+      <button class="btn ghost" onclick="closeModal()">Close</button>
+    </div>`);
+}
+
+function advanceSprint(id) {
+  const s=state.schedule.find(x=>x.id===id);
+  if(!s) return;
+  const seq=['planned','decided','drafting','in-review','producing','published'];
+  const i=seq.indexOf(s.status);
+  if(i<seq.length-1){s.status=seq[i+1];toast(`Sprint advanced to "${seq[i+1]}"`,true);}
+  closeModal();
+  renderSchedule();
+}
+
+function approveL2Trigger() {
+  state.kanban.research.push({id:'kl2_'+Date.now(),title:'Claude Projects & Notebooks — L2 platform course update',layer:'L2',sev:'high',due:'2026-06-30',assign:'LD Lead',fromFlow:false});
+  toast('L2 trigger approved — added to Research/Classify queue',true);
+  renderSchedule();
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+updateResearchBadge();
+setView('dashboard');
+</script>
+</body>
+</html>
